@@ -12,7 +12,13 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+// Serve static files (frontend)
+app.use(express.static('.'));
 
+// Serve index.html for root
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
 // Database connection
 const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
