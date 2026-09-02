@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Patches Inventory Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Login Page */
+        .login-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .login-card h1 {
+            margin-bottom: 10px;
+            color: #222;
+            font-size: 28px;
+        }
+
+        .login-card p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #333;
+            border: 1px solid #bdc3c7;
+        }
+
+        .btn-secondary:hover {
+            background: #d5dbdb;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .login-error {
+            color: #e74c3c;
+            background: #fadbd8;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .demo-users {
+            background: #ecf7f9;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .demo-users strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .demo-user {
+            margin: 4px 0;
+            font-family: monospace;
+        }
+
+        /* App Page */
+        .app-page {
+            display: none;
+        }
+
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin: 0;
+            color: #222;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-badge {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .user-badge.admin {
+            background: #e74c3c;
+        }
+
+        .user-badge.supervisor {
+            background: #f39c12;
+        }
+
+        .user-badge.purchaser {
+            background: #27ae60;
+        }
+
+        .logout-btn {
+            background: #ecf0f1;
+            color: #333;
+            padding: 8px 16px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .logout-btn:hover {
+            background: #d5dbdb;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #222;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .tabs-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            overflow-x: auto;
+            align-items: center;
+        }
+
+        .tab-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 8px;
+        }
+
+        .tab {
+            padding: 15px 12px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            white-space: nowrap;
+            margin: 0;
+        }
+
+        .tab:hover {
+            color: #333;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-action-btn {
+            background: none;
+            border: none;
+            color: #999;
+            cursor: pointer;
+            padding: 5px 8px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .tab-action-btn:hover {
+            color: #667eea;
+        }
+
+        .tab-action-btn.delete:hover {
+            color: #e74c3c;
+        }
+
+        .tab-add {
+            margin-left: auto;
+            color: #667eea;
+            padding: 15px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-add:hover {
+            color: #5568d3;
+        }
+
+        .tab-content {
+            padding: 20px;
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .type-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .type-info {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .type-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .colors-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .color-card {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .color-card.low-stock {
+            border-left: 4px solid #e74c3c;
+            background: #fef5f5;
+        }
+
+        .color-info {
+            flex: 1;
+        }
+
+        .color-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #222;
+        }
+
+        .color-stock {
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stock-badge {
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #ecf0f1;
+        }
+
+        .stock-badge.low {
+            background: #fadbd8;
+            color: #c0392b;
+        }
+
+        .color-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .color-actions .btn {
+            padding: 6px 10px;
+            font-size: 13px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            margin: 20px auto;
+        }
+
+        .modal-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #222;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .modal-actions .btn {
+            flex: 1;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .alert-success {
+            background: #d5f4e6;
+            border-left: 4px solid #27ae60;
+            color: #145a32;
+        }
+
+        .alert-error {
+            background: #fadbd8;
+            border-left: 4px solid #e74c3c;
+            color: #78281f;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .permission-denied {
+            background: #fadbd8;
+            border: 1px solid #f5b7b1;
+            padding: 20px;
+            border-radius: 6px;
+            color: #78281f;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .user-info {
+                width: 100%;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .color-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .color-actions {
+                width: 100%;
+            }
+
+            .color-actions .btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div class="login-page" id="loginPage">
+        <div class="login-card">
+            <h1>📦 Patches Inventory</h1>
+            <p>Production Team Portal</p>
+            
+            <div class="login-error" id="loginError"></div>
+
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="username" placeholder="Enter username" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="password" placeholder="Enter password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+            </form>
+
+            <div class="demo-users">
+                <strong>Demo Accounts:</strong>
+                <div class="demo-user"><strong>Admin:</strong> admin / admin123</div>
+                <div class="demo-user"><strong>Supervisor:</strong> supervisor / super123</div>
+                <div class="demo-user"><strong>Purchaser:</strong> purchaser / purchase123</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Page -->
+    <div class="app-page" id="appPage">
+        <div class="container">
+            <header>
+                <h1>📦 Custom Patches Inventory Manager</h1>
+                <div class="user-info">
+                    <div class="user-badge" id="userBadge"></div>
+                    <button class="logout-btn" onclick="handleLogout()">Logout</button>
+                </div>
+            </header>
+
+            <div class="metrics" id="metrics"></div>
+
+            <div class="controls">
+                <input 
+                    type="text" 
+                    class="search-box" 
+                    id="searchInput" 
+                    placeholder="Search by material type or color..."
+                >
+            </div>
+
+            <div id="alertContainer"></div>
+
+            <div class="tabs-container">
+                <div class="tabs" id="tabs">
+                    <button class="tab-add" id="addTypeBtn" style="display:none;" onclick="openAddTypeModal()">
+                        <i class="fas fa-plus"></i> Add Type
+                    </button>
+                </div>
+                <div id="tabContents"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Material Type Modal -->
+    <div class="modal" id="addTypeModal">
+        <div class="modal-content">
+            <div class="modal-title" id="typeModalTitle">Add New Material Type</div>
+            <form onsubmit="saveType(event)">
+                <div class="form-group">
+                    <label class="form-label">Material Type Name</label>
+                    <input type="text" class="form-input" id="typeName" placeholder="e.g., Viscose Thread" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Unit Type</label>
+                    <input type="text" class="form-input" id="typeUnit" placeholder="e.g., cones, spools, yards" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Default Reorder Level</label>
+                    <input type="number" class="form-input" id="typeReorder" step="1" value="20">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary" id="typeSaveBtn">Create Type</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addTypeModal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Color Modal -->
+    <div class="modal" id="addColorModal">
+        <div class="modal-content">
+            <div class="modal-title" id="colorModalTitle">Add Color Variant</div>
+            <form onsubmit="saveColor(event)">
+                <div class="form-group">
+                    <label class="form-label">Color Name</label>
+                    <input type="text" class="form-input" id="colorName" placeholder="e.g., Red" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Current Quantity</label>
+                    <input type="number" class="form-input" id="colorQuantity" step="1" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Unit Type</label>
+                    <input type="text" class="form-input" id="colorUnit" placeholder="e.g., cones, spools, yards" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Low Stock Alert Level</label>
+                    <input type="number" class="form-input" id="colorReorder" step="1" value="20">
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary" id="colorSaveBtn">Add Color</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addColorModal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Deduct Modal -->
+    <div class="modal" id="deductModal">
+        <div class="modal-content">
+            <div class="modal-title">Deduct from Stock</div>
+            <p id="deductInfo" style="color: #666; margin-bottom: 20px;"></p>
+            <form onsubmit="confirmDeduct(event)">
+                <div class="form-group">
+                    <label class="form-label">Quantity to Deduct</label>
+                    <input type="number" class="form-input" id="deductAmount" step="1" required autofocus>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-danger">Deduct</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('deductModal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_URL = process.env.API_URL || 'http://localhost:3000/api';
+        let authToken = localStorage.getItem('authToken');
+        let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        let currentTypeId = null;
+        let currentColorId = null;
+        let editingTypeId = null;
+        let editingColorId = null;
+        let materialTypes = [];
+
+        // ============================================
+        // AUTHENTICATION
+        // ============================================
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorEl = document.getElementById('loginError');
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    errorEl.textContent = data.error || 'Login failed';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                authToken = data.token;
+                currentUser = data.user;
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+                showApp();
+            } catch (error) {
+                errorEl.textContent = 'Connection error. Make sure backend is running.';
+                errorEl.style.display = 'block';
+                console.error(error);
+            }
+        }
+
+        function handleLogout() {
+            authToken = null;
+            currentUser = {};
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('appPage').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+        }
+
+        function showApp() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('appPage').style.display = 'block';
+            
+            // Update user badge
+            const badge = document.getElementById('userBadge');
+            badge.textContent = `${currentUser.username} (${currentUser.role})`;
+            badge.className = `user-badge ${currentUser.role.toLowerCase()}`;
+
+            // Show add type button only for Admin
+            document.getElementById('addTypeBtn').style.display = 
+                currentUser.role === 'Admin' ? 'flex' : 'none';
+
+            loadMaterialTypes();
+        }
+
+        // ============================================
+        // API CALLS
+        // ============================================
+
+        async function apiCall(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+                ...options.headers
+            };
+
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                ...options,
+                headers
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'API error');
+            }
+
+            return data;
+        }
+
+        async function loadMaterialTypes() {
+            try {
+                materialTypes = await apiCall('/material-types');
+                renderTabs();
+            } catch (error) {
+                showAlert(`Failed to load materials: ${error.message}`, 'error');
+                console.error(error);
+            }
+        }
+
+        // ============================================
+        // RENDERING
+        // ============================================
+
+        function renderTabs() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const tabsContainer = document.getElementById('tabs');
+            const tabContentsContainer = document.getElementById('tabContents');
+
+            const filteredTypes = materialTypes.filter(type => 
+                type.name.toLowerCase().includes(searchTerm) ||
+                (type.colors && type.colors.some(c => c.name.toLowerCase().includes(searchTerm)))
+            );
+
+            if (filteredTypes.length === 0) {
+                tabsContainer.innerHTML = currentUser.role === 'Admin' ? 
+                    '<button class="tab-add" onclick="openAddTypeModal()"><i class="fas fa-plus"></i> Add Type</button>' : '';
+                tabContentsContainer.innerHTML = '<div class="no-results">No materials found</div>';
+                return;
+            }
+
+            // Create tabs
+            let tabsHTML = '';
+            filteredTypes.forEach((type, index) => {
+                const isActive = currentTypeId === type.id || (!currentTypeId && index === 0);
+                if (isActive && !currentTypeId) currentTypeId = type.id;
+                
+                let actionButtons = '';
+                if (currentUser.role === 'Admin') {
+                    actionButtons = `
+                        <button class="tab-action-btn" onclick="openEditTypeModal(${type.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="tab-action-btn delete" onclick="deleteType(${type.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                }
+
+                tabsHTML += `
+                    <div class="tab-wrapper">
+                        <button class="tab ${isActive ? 'active' : ''}" onclick="switchTab(${type.id})">${type.name}</button>
+                        ${actionButtons}
+                    </div>
+                `;
+            });
+
+            if (currentUser.role === 'Admin') {
+                tabsHTML += '<button class="tab-add" onclick="openAddTypeModal()"><i class="fas fa-plus"></i> Add Type</button>';
+            }
+
+            tabsContainer.innerHTML = tabsHTML;
+
+            // Create tab contents
+            let contentsHTML = '';
+            filteredTypes.forEach((type) => {
+                const isActive = currentTypeId === type.id;
+                const colors = type.colors || [];
+                const filteredColors = colors.filter(color => 
+                    searchTerm === '' || 
+                    type.name.toLowerCase().includes(searchTerm) ||
+                    color.name.toLowerCase().includes(searchTerm)
+                );
+
+                let colorsHTML = '';
+                if (filteredColors.length === 0) {
+                    colorsHTML = currentUser.role !== 'Purchaser' ? `
+                        <div class="empty-state">
+                            <div class="empty-state-icon"><i class="fas fa-palette"></i></div>
+                            <div class="empty-state-text">No colors in this type</div>
+                            <button class="btn btn-primary" onclick="openAddColorModal(${type.id})">
+                                <i class="fas fa-plus"></i> Add Color
+                            </button>
+                        </div>
+                    ` : '<div class="empty-state">No colors in this type</div>';
+                } else {
+                    colorsHTML = '<div class="colors-grid">';
+                    filteredColors.forEach((color) => {
+                        const isLowStock = color.quantity <= color.reorderLevel;
+                        
+                        let actionButtons = '';
+                        if (currentUser.role !== 'Purchaser') {
+                            actionButtons = `
+                                <button class="btn btn-danger btn-small" onclick="openDeductModal(${type.id}, ${color.id})">
+                                    <i class="fas fa-minus"></i> Deduct
+                                </button>
+                            `;
+                        }
+
+                        if (currentUser.role !== 'Purchaser') {
+                            actionButtons += `
+                                <button class="btn btn-secondary btn-small" onclick="openEditColorModal(${type.id}, ${color.id})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            `;
+                        }
+
+                        if (currentUser.role === 'Admin') {
+                            actionButtons += `
+                                <button class="btn btn-secondary btn-small" onclick="deleteColor(${type.id}, ${color.id})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            `;
+                        }
+
+                        colorsHTML += `
+                            <div class="color-card ${isLowStock ? 'low-stock' : ''}">
+                                <div class="color-info">
+                                    <div class="color-name">${color.name}</div>
+                                    <div class="color-stock">
+                                        <span class="stock-badge ${isLowStock ? 'low' : ''}">
+                                            Stock: ${color.quantity} ${color.unit}
+                                        </span>
+                                        <span style="font-size: 12px; color: #999;">Alert at: ${color.reorderLevel}</span>
+                                        ${isLowStock ? '<span style="color: #e74c3c; font-weight: 600;">⚠️ Low Stock</span>' : ''}
+                                    </div>
+                                </div>
+                                <div class="color-actions">
+                                    ${actionButtons}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    colorsHTML += '</div>';
+                }
+
+                let typeActionsHTML = '';
+                if (currentUser.role !== 'Purchaser') {
+                    typeActionsHTML = `
+                        <button class="btn btn-primary btn-small" onclick="openAddColorModal(${type.id})">
+                            <i class="fas fa-plus"></i> Add Color
+                        </button>
+                    `;
+                }
+
+                contentsHTML += `
+                    <div class="tab-content ${isActive ? 'active' : ''}" id="tab-${type.id}">
+                        <div class="type-header">
+                            <div class="type-info">
+                                Unit: <strong>${type.unit}</strong> | Alert Level: <strong>${type.reorder_level}</strong>
+                            </div>
+                            <div class="type-actions">
+                                ${typeActionsHTML}
+                            </div>
+                        </div>
+                        ${colorsHTML}
+                    </div>
+                `;
+            });
+
+            tabContentsContainer.innerHTML = contentsHTML;
+        }
+
+        function switchTab(typeId) {
+            currentTypeId = typeId;
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelectorAll('.tab').forEach(tab => {
+                const type = materialTypes.find(t => t.id === typeId);
+                if (type && tab.textContent.includes(type.name)) {
+                    tab.classList.add('active');
+                }
+            });
+            document.getElementById(`tab-${typeId}`).classList.add('active');
+        }
+
+        // ============================================
+        // MATERIAL TYPE OPERATIONS
+        // ============================================
+
+        function openAddTypeModal() {
+            editingTypeId = null;
+            document.getElementById('typeModalTitle').textContent = 'Add New Material Type';
+            document.getElementById('typeSaveBtn').textContent = 'Create Type';
+            document.getElementById('typeName').value = '';
+            document.getElementById('typeUnit').value = '';
+            document.getElementById('typeReorder').value = '20';
+            document.getElementById('addTypeModal').classList.add('active');
+        }
+
+        function openEditTypeModal(typeId) {
+            const type = materialTypes.find(t => t.id === typeId);
+            if (!type) return;
+
+            editingTypeId = typeId;
+            document.getElementById('typeModalTitle').textContent = 'Edit Material Type';
+            document.getElementById('typeSaveBtn').textContent = 'Update Type';
+            document.getElementById('typeName').value = type.name;
+            document.getElementById('typeUnit').value = type.unit;
+            document.getElementById('typeReorder').value = type.reorder_level;
+            document.getElementById('addTypeModal').classList.add('active');
+        }
+
+        async function saveType(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('typeName').value.trim();
+            const unit = document.getElementById('typeUnit').value.trim();
+            const reorderLevel = parseFloat(document.getElementById('typeReorder').value) || 20;
+
+            if (!name || !unit) {
+                showAlert('Please fill in all fields', 'error');
+                return;
+            }
+
+            try {
+                if (editingTypeId) {
+                    await apiCall(`/material-types/${editingTypeId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name, unit, reorderLevel })
+                    });
+                    showAlert('Material type updated', 'success');
+                } else {
+                    await apiCall('/material-types', {
+                        method: 'POST',
+                        body: JSON.stringify({ name, unit, reorderLevel })
+                    });
+                    showAlert('Material type added', 'success');
+                }
+
+                closeModal('addTypeModal');
+                loadMaterialTypes();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteType(typeId) {
+            if (!confirm('Delete this material type and all colors?')) return;
+
+            try {
+                await apiCall(`/material-types/${typeId}`, { method: 'DELETE' });
+                showAlert('Material type deleted', 'success');
+                currentTypeId = null;
+                loadMaterialTypes();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // COLOR VARIANT OPERATIONS
+        // ============================================
+
+        function openAddColorModal(typeId) {
+            editingColorId = null;
+            currentTypeId = typeId;
+            const type = materialTypes.find(t => t.id === typeId);
+            
+            document.getElementById('colorModalTitle').textContent = 'Add Color Variant';
+            document.getElementById('colorSaveBtn').textContent = 'Add Color';
+            document.getElementById('colorName').value = '';
+            document.getElementById('colorQuantity').value = '';
+            document.getElementById('colorUnit').value = type ? type.unit : '';
+            document.getElementById('colorReorder').value = type ? type.reorder_level : '20';
+            document.getElementById('addColorModal').classList.add('active');
+        }
+
+        function openEditColorModal(typeId, colorId) {
+            const type = materialTypes.find(t => t.id === typeId);
+            const color = type && type.colors ? type.colors.find(c => c.id === colorId) : null;
+            
+            if (!color) return;
+
+            editingColorId = colorId;
+            currentTypeId = typeId;
+            document.getElementById('colorModalTitle').textContent = 'Edit Color Variant';
+            document.getElementById('colorSaveBtn').textContent = 'Update Color';
+            document.getElementById('colorName').value = color.name;
+            document.getElementById('colorQuantity').value = color.quantity;
+            document.getElementById('colorUnit').value = color.unit;
+            document.getElementById('colorReorder').value = color.reorderLevel;
+            document.getElementById('addColorModal').classList.add('active');
+        }
+
+        async function saveColor(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('colorName').value.trim();
+            const quantity = parseFloat(document.getElementById('colorQuantity').value);
+            const unit = document.getElementById('colorUnit').value.trim();
+            const reorderLevel = parseFloat(document.getElementById('colorReorder').value) || 20;
+
+            if (!name || isNaN(quantity) || !unit) {
+                showAlert('Please fill in all fields', 'error');
+                return;
+            }
+
+            try {
+                if (editingColorId) {
+                    await apiCall(`/color-variants/${editingColorId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ name, quantity, unit, reorderLevel })
+                    });
+                    showAlert('Color updated', 'success');
+                } else {
+                    await apiCall('/color-variants', {
+                        method: 'POST',
+                        body: JSON.stringify({ materialTypeId: currentTypeId, name, quantity, unit, reorderLevel })
+                    });
+                    showAlert('Color added', 'success');
+                }
+
+                closeModal('addColorModal');
+                loadMaterialTypes();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function openDeductModal(typeId, colorId) {
+            const type = materialTypes.find(t => t.id === typeId);
+            const color = type && type.colors ? type.colors.find(c => c.id === colorId) : null;
+
+            if (!color) return;
+
+            currentTypeId = typeId;
+            currentColorId = colorId;
+            document.getElementById('deductInfo').textContent = 
+                `${type.name} - ${color.name} (Current: ${color.quantity} ${color.unit})`;
+            document.getElementById('deductAmount').value = '';
+            document.getElementById('deductModal').classList.add('active');
+        }
+
+        async function confirmDeduct(event) {
+            event.preventDefault();
+
+            const amount = parseFloat(document.getElementById('deductAmount').value);
+
+            if (isNaN(amount) || amount <= 0) {
+                showAlert('Enter a valid quantity', 'error');
+                return;
+            }
+
+            try {
+                await apiCall(`/color-variants/${currentColorId}/deduct`, {
+                    method: 'POST',
+                    body: JSON.stringify({ amount })
+                });
+                showAlert(`Deducted ${amount} from stock`, 'success');
+                closeModal('deductModal');
+                loadMaterialTypes();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteColor(typeId, colorId) {
+            if (!confirm('Delete this color?')) return;
+
+            try {
+                await apiCall(`/color-variants/${colorId}`, { method: 'DELETE' });
+                showAlert('Color deleted', 'success');
+                loadMaterialTypes();
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // ============================================
+        // UI HELPERS
+        // ============================================
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                <span>${message}</span>
+            `;
+            alertContainer.appendChild(alert);
+            setTimeout(() => alert.remove(), 4000);
+        }
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+
+        document.getElementById('searchInput').addEventListener('input', () => {
+            renderTabs();
+        });
+
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('active');
+            });
+        });
+
+        // Check if already logged in
+        if (authToken && currentUser.id) {
+            showApp();
+        }
+    </script>
+</body>
+</html>
