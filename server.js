@@ -343,15 +343,24 @@ app.post('/api/users', authenticateToken, async (req, res) => {
 // SETUP ENDPOINT
 // ============================================
 
+// ============================================
+// SETUP ENDPOINT
+// ============================================
+
 app.get('/api/setup/create-users', async (req, res) => {
   try {
-    console.log('Deleting old data...');
+    console.log('Starting setup...');
     
     // Delete in correct order
     await pool.query('DELETE FROM inventory_logs');
     await pool.query('DELETE FROM color_variants');
     await pool.query('DELETE FROM material_types');
     await pool.query('DELETE FROM users');
+
+    // Reset sequences
+    await pool.query('ALTER SEQUENCE users_id_seq RESTART WITH 1');
+    await pool.query('ALTER SEQUENCE material_types_id_seq RESTART WITH 1');
+    await pool.query('ALTER SEQUENCE color_variants_id_seq RESTART WITH 1');
 
     console.log('Creating users...');
     
@@ -369,6 +378,48 @@ app.get('/api/setup/create-users', async (req, res) => {
       [adminPass, supervisorPass, purchaserPass]
     );
 
+    console.log('Adding materials...');
+    
+    // Insert materials
+    const materialResult = await pool.query(`
+      INSERT INTO material_types (name, unit, reorder_level) VALUES 
+        ('Viscose Thread', 'cones', 20),
+        ('Polyester Thread', 'cones', 20),
+        ('Cotton Backing', 'yards', 50)
+      RETURNING id
+    `);
+
+    // Insert colors - make sure material types exist first
+    await pool.query(`
+      INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by) VALUES 
+        (1, 'Red', 50, 'cones', 20, 1),
+        (1, 'Blue', 75, 'cones', 20, 1),
+        (1, 'Green', 30, 'cones', 20, 1),
+        (1, 'White', 100, 'cones', 20, 1),
+        (1, 'Black', 120, 'cones', 20, 1),
+        (2, 'Red', 80, 'cones', 20, 1),
+        (2, 'Blue', 95, 'cones', 20, 1),
+        (2, 'Navy', 15, 'cones', 20, 1),
+        (2, 'White', 150, 'cones', 20, 1),
+        (3, 'Natural', 500, 'yards', 50, 1),
+        (3, 'White', 350, 'yards', 50, 1),
+        (3, 'Black', 200, 'yards', 50, 1)
+    `);
+
+    res.json({ 
+      success: true,
+      message: 'Setup completed successfully!',
+      users: [
+        { username: 'admin', password: 'admin123', role: 'Admin' },
+        { username: 'supervisor', password: 'super123', role: 'Supervisor' },
+        { username: 'purchaser', password: 'purchase123', role: 'Purchaser' }
+      ]
+    });
+  } catch (error) {
+    console.error('Setup error:', error);
+    res.status(500).json({ error: 'Setup failed', details: error.message });
+  }
+});
     console.log('Adding sample materials...');
     
     // Insert materials
