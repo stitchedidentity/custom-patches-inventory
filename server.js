@@ -366,7 +366,7 @@ app.post('/api/users', authenticateToken, async (req, res) => {
 // SETUP ENDPOINT - Create Users (FIXED)
 // ============================================
 
-app.post('/api/setup/create-users', async (req, res) => {
+app.get('/api/setup/create-users', async (req, res) => {
   try {
     console.log('Creating users...');
     
