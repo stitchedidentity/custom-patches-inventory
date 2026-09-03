@@ -366,13 +366,96 @@ app.post('/api/users', authenticateToken, async (req, res) => {
 // SETUP ENDPOINT - Create Users (FIXED)
 // ============================================
 
+// ============================================
+// SETUP ENDPOINT - Create Users (FIXED)
+// ============================================
+
 app.get('/api/setup/create-users', async (req, res) => {
+  await handleCreateUsers(req, res);
+});
+
+app.post('/api/setup/create-users', async (req, res) => {
+  await handleCreateUsers(req, res);
+});
+
+async function handleCreateUsers(req, res) {
   try {
-    console.log('Creating users...');
+    console.log('Creating users - deleting old data...');
     
-    // Delete existing users
+    // Delete in correct order to avoid foreign key conflicts
+    console.log('Deleting inventory logs...');
+    await pool.query('DELETE FROM inventory_logs');
+    
+    console.log('Deleting color variants...');
+    await pool.query('DELETE FROM color_variants');
+    
+    console.log('Deleting material types...');
+    await pool.query('DELETE FROM material_types');
+    
+    console.log('Deleting users...');
     await pool.query('DELETE FROM users');
 
+    // Hash passwords
+    console.log('Hashing passwords...');
+    const adminHash = await bcrypt.hash('admin123', 10);
+    const supervisorHash = await bcrypt.hash('super123', 10);
+    const purchaserHash = await bcrypt.hash('purchase123', 10);
+
+    // Insert users
+    console.log('Creating users...');
+    await pool.query(
+      `INSERT INTO users (username, password_hash, role) VALUES 
+        ($1, $2, $3),
+        ($4, $5, $6),
+        ($7, $8, $9)`,
+      ['admin', adminHash, 'Admin', 'supervisor', supervisorHash, 'Supervisor', 'purchaser', purchaserHash, 'Purchaser']
+    );
+
+    // Add default material types
+    console.log('Adding default materials...');
+    await pool.query(`
+      INSERT INTO material_types (name, unit, reorder_level) VALUES 
+        ('Viscose Thread', 'cones', 20),
+        ('Polyester Thread', 'cones', 20),
+        ('Cotton Backing', 'yards', 50)
+    `);
+
+    // Add default colors
+    await pool.query(`
+      INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by) VALUES 
+        (1, 'Red', 50, 'cones', 20, 1),
+        (1, 'Blue', 75, 'cones', 20, 1),
+        (1, 'Green', 30, 'cones', 20, 1),
+        (1, 'White', 100, 'cones', 20, 1),
+        (1, 'Black', 120, 'cones', 20, 1),
+        (2, 'Red', 80, 'cones', 20, 1),
+        (2, 'Blue', 95, 'cones', 20, 1),
+        (2, 'Navy', 15, 'cones', 20, 1),
+        (2, 'White', 150, 'cones', 20, 1),
+        (3, 'Natural', 500, 'yards', 50, 1),
+        (3, 'White', 350, 'yards', 50, 1),
+        (3, 'Black', 200, 'yards', 50, 1)
+    `);
+
+    console.log('✅ Setup completed successfully');
+    res.json({ 
+      message: 'Setup completed successfully!',
+      users: [
+        { username: 'admin', password: 'admin123', role: 'Admin' },
+        { username: 'supervisor', password: 'super123', role: 'Supervisor' },
+        { username: 'purchaser', password: 'purchase123', role: 'Purchaser' }
+      ],
+      materials: [
+        { name: 'Viscose Thread', unit: 'cones' },
+        { name: 'Polyester Thread', unit: 'cones' },
+        { name: 'Cotton Backing', unit: 'yards' }
+      ]
+    });
+  } catch (error) {
+    console.error('❌ Setup error:', error);
+    res.status(500).json({ error: 'Failed to setup database', details: error.message });
+  }
+}
     // Hash passwords
     const adminHash = await bcrypt.hash('admin123', 10);
     const supervisorHash = await bcrypt.hash('super123', 10);
