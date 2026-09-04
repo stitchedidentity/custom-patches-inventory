@@ -506,7 +506,7 @@
       background: #38a169;
     }
 
-    .add-btn {
+    .add-btn-color {
       background: #4299e1;
       color: white;
       border: none;
@@ -517,7 +517,7 @@
       font-weight: 600;
     }
 
-    .add-btn:hover {
+    .add-btn-color:hover {
       background: #3182ce;
     }
 
@@ -621,6 +621,54 @@
       color: #999;
     }
 
+    /* PERMISSION CHECKBOXES */
+    .permission-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .permission-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #f7fafc;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .permission-checkbox input {
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+    }
+
+    .permission-checkbox label {
+      cursor: pointer;
+      margin: 0;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .permission-info {
+      background: #e6f3ff;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 13px;
+      color: #0c5aa0;
+    }
+
+    .permission-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #333;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
     @media (max-width: 768px) {
       .header {
         flex-direction: column;
@@ -651,6 +699,10 @@
 
       .modal-content {
         width: 95%;
+      }
+
+      .permission-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -764,7 +816,7 @@
     <!-- INVENTORY TAB -->
     <div id="inventoryTab" class="tab-content active">
       
-      <!-- MATERIALS SUMMARY -->
+      <!-- METRICS SUMMARY -->
       <div class="metrics-grid" id="materialsSummaryContainer">
         <div class="loading">Loading summary...</div>
       </div>
@@ -826,6 +878,83 @@
         </div>
       </div>
 
+      <!-- MANAGE PERMISSIONS -->
+      <div class="admin-section">
+        <h3>🔐 Manage User Permissions</h3>
+        <div class="permission-info">
+          ℹ️ Select a user to customize their permissions. Admin users have all permissions by default.
+        </div>
+        
+        <label style="font-weight: 600; margin-bottom: 10px; display: block;">Select User to Edit Permissions:</label>
+        <select id="permissionUserSelect" onchange="showUserPermissions()" style="padding: 10px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 14px; width: 100%; max-width: 300px; margin-bottom: 20px;">
+          <option value="">-- Choose a user --</option>
+        </select>
+
+        <div id="permissionsContainer" style="display: none;">
+          <div class="permission-section-title">📋 Inventory Access</div>
+          <div class="permission-grid">
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_view_inventory" onchange="updatePermission('view_inventory')">
+              <label for="perm_view_inventory">View Inventory</label>
+            </div>
+          </div>
+
+          <div class="permission-section-title">📦 Material Type Management</div>
+          <div class="permission-grid">
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_add_material" onchange="updatePermission('add_material')">
+              <label for="perm_add_material">Add Material Type</label>
+            </div>
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_edit_material" onchange="updatePermission('edit_material')">
+              <label for="perm_edit_material">Edit Material Type</label>
+            </div>
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_delete_material" onchange="updatePermission('delete_material')">
+              <label for="perm_delete_material">Delete Material Type</label>
+            </div>
+          </div>
+
+          <div class="permission-section-title">🎨 Color Variant Management</div>
+          <div class="permission-grid">
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_add_color" onchange="updatePermission('add_color')">
+              <label for="perm_add_color">Add Color Variant</label>
+            </div>
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_edit_color" onchange="updatePermission('edit_color')">
+              <label for="perm_edit_color">Edit Color Variant</label>
+            </div>
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_delete_color" onchange="updatePermission('delete_color')">
+              <label for="perm_delete_color">Delete Color Variant</label>
+            </div>
+          </div>
+
+          <div class="permission-section-title">📊 Stock Management</div>
+          <div class="permission-grid">
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_deduct_stock" onchange="updatePermission('deduct_stock')">
+              <label for="perm_deduct_stock">Deduct Stock</label>
+            </div>
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_add_stock" onchange="updatePermission('add_stock')">
+              <label for="perm_add_stock">Add Stock</label>
+            </div>
+          </div>
+
+          <div class="permission-section-title">👥 User Management</div>
+          <div class="permission-grid">
+            <div class="permission-checkbox">
+              <input type="checkbox" id="perm_manage_users" onchange="updatePermission('manage_users')">
+              <label for="perm_manage_users">Manage Users & Permissions</label>
+            </div>
+          </div>
+
+          <button onclick="savePermissions()" style="margin-top: 20px; padding: 12px 24px; background: #48bb78; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px;">💾 Save Permissions</button>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -836,6 +965,9 @@ const API_URL = '/api';
 let currentUser = null;
 let currentToken = null;
 let editingMaterialId = null;
+let editingColorId = null;
+let selectedPermissionUser = null;
+let editingPermissions = {};
 
 // ============================================
 // LOGIN
@@ -892,9 +1024,13 @@ function showDashboard() {
   document.getElementById('currentUser').textContent = currentUser.username;
   document.getElementById('currentRole').textContent = currentUser.role;
 
-  // Show admin features only for admins
-  if (currentUser.role === 'Admin') {
+  // Show admin features only if user has manage_users permission
+  if (currentUser.permissions && currentUser.permissions.manage_users) {
     document.getElementById('adminTabBtn').classList.remove('hidden-tab');
+  }
+
+  // Show add material only if user has add_material permission
+  if (currentUser.permissions && currentUser.permissions.add_material) {
     document.getElementById('addMaterialSection').style.display = 'block';
   }
 
@@ -958,7 +1094,6 @@ function renderInventory(materials) {
   materials.forEach(material => {
     const colors = material.colors && material.colors.length > 0 ? material.colors : [];
     
-    // Calculate totals for this material
     let materialTotal = 0;
     colors.forEach(c => materialTotal += c.quantity);
 
@@ -969,16 +1104,15 @@ function renderInventory(materials) {
             <div class="material-name">${material.name}</div>
             <div class="material-info">${colors.length} colors • ${materialTotal} total • Unit: ${material.unit} (Reorder: ${material.reorder_level})</div>
           </div>
-          ${currentUser.role === 'Admin' ? `
+          ${currentUser.permissions && currentUser.permissions.edit_material ? `
             <div class="material-actions">
               <button class="action-btn" title="Edit" onclick="openEditModal(${material.id}, '${material.name}', '${material.unit}', ${material.reorder_level})">✏️</button>
-              <button class="action-btn" title="Delete">🗑️</button>
+              ${currentUser.permissions && currentUser.permissions.delete_material ? `<button class="action-btn" title="Delete">🗑️</button>` : ''}
             </div>
           ` : ''}
         </div>
     `;
 
-    // Add color variants
     if (colors.length === 0) {
       html += '<div style="color: #999; font-size: 13px; margin-bottom: 15px;">No colors added</div>';
     } else {
@@ -995,19 +1129,24 @@ function renderInventory(materials) {
             <div class="color-actions">
         `;
 
-        if (currentUser.role !== 'Purchaser') {
-          html += `
-            <input type="number" class="deduct-input" id="deduct-${color.id}" value="1" min="1">
-            <button class="deduct-btn" onclick="deductStock(${color.id})">Deduct</button>
-            <button class="add-btn" onclick="addStock(${color.id})">Add Stock</button>
-          `;
+        if (currentUser.permissions && (currentUser.permissions.deduct_stock || currentUser.permissions.add_stock)) {
+          html += `<input type="number" class="deduct-input" id="deduct-${color.id}" value="1" min="1">`;
+          
+          if (currentUser.permissions.deduct_stock) {
+            html += `<button class="deduct-btn" onclick="deductStock(${color.id})">Deduct</button>`;
+          }
+          
+          if (currentUser.permissions.add_stock) {
+            html += `<button class="add-btn-color" onclick="addStock(${color.id})">Add Stock</button>`;
+          }
         }
 
-        if (currentUser.role === 'Admin') {
-          html += `
-            <button class="edit-btn" onclick="openEditColorModal(${color.id}, '${color.name}', ${color.quantity}, '${color.unit}', ${color.reorderLevel})">Edit</button>
-            <button class="delete-btn" onclick="deleteColorVariant(${color.id})">Delete</button>
-          `;
+        if (currentUser.permissions && currentUser.permissions.edit_color) {
+          html += `<button class="edit-btn" onclick="openEditColorModal(${color.id}, '${color.name}', ${color.quantity}, '${color.unit}', ${color.reorderLevel})">Edit</button>`;
+        }
+
+        if (currentUser.permissions && currentUser.permissions.delete_color) {
+          html += `<button class="delete-btn" onclick="deleteColorVariant(${color.id})">Delete</button>`;
         }
 
         html += `
@@ -1017,8 +1156,8 @@ function renderInventory(materials) {
       });
     }
 
-    // Add color form (Admin & Supervisor only)
-    if (currentUser.role !== 'Purchaser') {
+    // Add color form (if user has add_color permission)
+    if (currentUser.permissions && currentUser.permissions.add_color) {
       html += `
         <div style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 15px;">
           <div style="font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px;">➕ Add Color Variant</div>
@@ -1128,6 +1267,10 @@ async function addMaterial() {
   }
 }
 
+// ============================================
+// STOCK MANAGEMENT
+// ============================================
+
 async function deductStock(colorId) {
   const input = document.getElementById(`deduct-${colorId}`);
   const amount = parseInt(input.value);
@@ -1158,10 +1301,6 @@ async function deductStock(colorId) {
     alert('❌ Error: ' + error.message);
   }
 }
-
-// ============================================
-// ADD STOCK
-// ============================================
 
 async function addStock(colorId) {
   const input = document.getElementById(`deduct-${colorId}`);
@@ -1194,9 +1333,144 @@ async function addStock(colorId) {
   }
 }
 
+// ============================================
+// EDIT COLOR VARIANT
+// ============================================
+
+function openEditColorModal(colorId, name, quantity, unit, reorderLevel) {
+  editingColorId = colorId;
+  document.getElementById('editColorName').value = name || '';
+  document.getElementById('editColorQty').value = quantity || '0';
+  document.getElementById('editColorUnit').value = unit || '';
+  document.getElementById('editColorReorder').value = reorderLevel || '20';
+  document.getElementById('editColorModal').classList.add('active');
+}
+
+function closeEditColorModal() {
+  document.getElementById('editColorModal').classList.remove('active');
+  editingColorId = null;
+}
+
+async function saveEditColor() {
+  const name = document.getElementById('editColorName').value;
+  const quantityStr = document.getElementById('editColorQty').value;
+  const unit = document.getElementById('editColorUnit').value;
+  const reorderStr = document.getElementById('editColorReorder').value;
+
+  if (!name || !unit) {
+    alert('❌ Please fill Color Name and Unit');
+    return;
+  }
+
+  const quantity = parseInt(quantityStr);
+  const reorderLevel = parseInt(reorderStr);
+
+  if (isNaN(quantity) || isNaN(reorderLevel)) {
+    alert('❌ Quantity and Reorder Level must be numbers');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/color-variants/${editingColorId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({ 
+        name, 
+        quantity,
+        unit, 
+        reorderLevel
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ Color updated successfully');
+      closeEditColorModal();
+      loadInventory();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to update color'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
+}
+
+async function deleteColorVariant(colorId) {
+  if (!confirm('Are you sure? This action cannot be undone.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/color-variants/${colorId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ Color deleted successfully');
+      loadInventory();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to delete color'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
+}
 
 // ============================================
-// ADMIN PANEL
+// ADD COLOR VARIANT
+// ============================================
+
+async function addColorVariant(materialId, unit, reorderLevel) {
+  const colorName = document.getElementById(`colorName-${materialId}`).value;
+  const colorQty = document.getElementById(`colorQty-${materialId}`).value;
+
+  if (!colorName) {
+    alert('❌ Please enter a color name');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/color-variants`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({
+        materialTypeId: materialId,
+        name: colorName,
+        quantity: parseInt(colorQty) || 0,
+        unit: unit,
+        reorderLevel: reorderLevel
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ Color added successfully');
+      document.getElementById(`colorName-${materialId}`).value = '';
+      document.getElementById(`colorQty-${materialId}`).value = '0';
+      loadInventory();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to add color'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
+}
+
+// ============================================
+// USER MANAGEMENT
 // ============================================
 
 async function loadUsers() {
@@ -1209,6 +1483,7 @@ async function loadUsers() {
 
     const users = await response.json();
     renderUsers(users);
+    populatePermissionUserSelect(users);
 
   } catch (error) {
     document.getElementById('usersList').innerHTML = `<tr><td colspan="4" style="color: red;">❌ ${error.message}</td></tr>`;
@@ -1233,6 +1508,18 @@ function renderUsers(users) {
   });
 
   document.getElementById('usersList').innerHTML = html || '<tr><td colspan="4">No users</td></tr>';
+}
+
+function populatePermissionUserSelect(users) {
+  const select = document.getElementById('permissionUserSelect');
+  select.innerHTML = '<option value="">-- Choose a user --</option>';
+  
+  users.forEach(user => {
+    const option = document.createElement('option');
+    option.value = user.id;
+    option.textContent = `${user.username} (${user.role})`;
+    select.appendChild(option);
+  });
 }
 
 async function createUser() {
@@ -1299,6 +1586,87 @@ async function deleteUser(userId) {
   }
 }
 
+// ============================================
+// PERMISSION MANAGEMENT
+// ============================================
+
+async function showUserPermissions() {
+  const userSelect = document.getElementById('permissionUserSelect');
+  const userId = userSelect.value;
+  
+  if (!userId) {
+    document.getElementById('permissionsContainer').style.display = 'none';
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/users`, {
+      headers: { 'Authorization': `Bearer ${currentToken}` }
+    });
+    
+    const users = await response.json();
+    const user = users.find(u => u.id === parseInt(userId));
+    
+    if (user) {
+      selectedPermissionUser = userId;
+      editingPermissions = user.permissions || {};
+      
+      // Update checkboxes
+      const permissions = [
+        'view_inventory', 'add_material', 'edit_material', 'delete_material',
+        'add_color', 'edit_color', 'delete_color',
+        'deduct_stock', 'add_stock', 'manage_users'
+      ];
+      
+      permissions.forEach(perm => {
+        const checkbox = document.getElementById(`perm_${perm}`);
+        if (checkbox) {
+          checkbox.checked = editingPermissions[perm] || false;
+        }
+      });
+      
+      document.getElementById('permissionsContainer').style.display = 'block';
+    }
+  } catch (error) {
+    alert('❌ Error loading user: ' + error.message);
+  }
+}
+
+function updatePermission(permissionName) {
+  const checkbox = document.getElementById(`perm_${permissionName}`);
+  editingPermissions[permissionName] = checkbox.checked;
+}
+
+async function savePermissions() {
+  if (!selectedPermissionUser) {
+    alert('❌ Please select a user');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/users/${selectedPermissionUser}/permissions`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({ permissions: editingPermissions })
+    });
+    
+    if (response.ok) {
+      alert('✅ Permissions updated successfully');
+      loadUsers();
+      document.getElementById('permissionUserSelect').value = '';
+      document.getElementById('permissionsContainer').style.display = 'none';
+    } else {
+      const data = await response.json();
+      alert('❌ ' + (data.error || 'Failed to update permissions'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
+}
+
 function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -1308,145 +1676,6 @@ function switchTab(tab) {
 
   if (tab === 'admin') {
     loadUsers();
-  }
-}
-
-async function addColorVariant(materialId, unit, reorderLevel) {
-  const colorName = document.getElementById(`colorName-${materialId}`).value;
-  const colorQty = document.getElementById(`colorQty-${materialId}`).value;
-
-  if (!colorName) {
-    alert('❌ Please enter a color name');
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/color-variants`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentToken}`
-      },
-      body: JSON.stringify({
-        materialTypeId: materialId,
-        name: colorName,
-        quantity: parseInt(colorQty) || 0,
-        unit: unit,
-        reorderLevel: reorderLevel
-      })
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      alert('✅ Color added successfully');
-      document.getElementById(`colorName-${materialId}`).value = '';
-      document.getElementById(`colorQty-${materialId}`).value = '0';
-      loadInventory();
-    } else {
-      alert('❌ ' + (data.error || 'Failed to add color'));
-    }
-  } catch (error) {
-    alert('❌ Error: ' + error.message);
-  }
-}
-
-// ============================================
-// EDIT COLOR VARIANT
-// ============================================
-
-let editingColorId = null;
-
-function openEditColorModal(colorId, name, quantity, unit, reorderLevel) {
-  editingColorId = colorId;
-  document.getElementById('editColorName').value = name || '';
-  document.getElementById('editColorQty').value = quantity || '0';
-  document.getElementById('editColorUnit').value = unit || '';
-  document.getElementById('editColorReorder').value = reorderLevel || '20';
-  document.getElementById('editColorModal').classList.add('active');
-}
-
-function closeEditColorModal() {
-  document.getElementById('editColorModal').classList.remove('active');
-  editingColorId = null;
-}
-
-async function saveEditColor() {
-  const name = document.getElementById('editColorName').value;
-  const quantityStr = document.getElementById('editColorQty').value;
-  const unit = document.getElementById('editColorUnit').value;
-  const reorderStr = document.getElementById('editColorReorder').value;
-
-  // Validate
-  if (!name || !unit) {
-    alert('❌ Please fill Color Name and Unit');
-    return;
-  }
-
-  const quantity = parseInt(quantityStr);
-  const reorderLevel = parseInt(reorderStr);
-
-  if (isNaN(quantity) || isNaN(reorderLevel)) {
-    alert('❌ Quantity and Reorder Level must be numbers');
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/color-variants/${editingColorId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${currentToken}`
-      },
-      body: JSON.stringify({ 
-        name, 
-        quantity,
-        unit, 
-        reorderLevel
-      })
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      alert('✅ Color updated successfully');
-      closeEditColorModal();
-      loadInventory();
-    } else {
-      alert('❌ ' + (data.error || 'Failed to update color'));
-    }
-  } catch (error) {
-    alert('❌ Error: ' + error.message);
-  }
-}
-
-// ============================================
-// DELETE COLOR VARIANT
-// ============================================
-
-async function deleteColorVariant(colorId) {
-  if (!confirm('Are you sure? This action cannot be undone.')) {
-    return;
-  }
-
-  try {
-    const response = await fetch(`${API_URL}/color-variants/${colorId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${currentToken}`
-      }
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      alert('✅ Color deleted successfully');
-      loadInventory();
-    } else {
-      alert('❌ ' + (data.error || 'Failed to delete color'));
-    }
-  } catch (error) {
-    alert('❌ Error: ' + error.message);
   }
 }
 
