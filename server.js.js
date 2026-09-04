@@ -340,45 +340,64 @@ app.post('/api/users', authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// SETUP ENDPOINT - WORKING VERSION
+// SETUP ENDPOINT - FIXED
 // ============================================
 
 app.get('/api/setup/create-users', async (req, res) => {
+  const client = await pool.connect();
   try {
     console.log('Starting setup...');
     
-    // TRUNCATE CASCADE deletes everything AND resets sequences
-    await pool.query('TRUNCATE material_types CASCADE');
-    await pool.query('TRUNCATE users CASCADE');
-
-    console.log('Creating users...');
+    // Use transaction
+    await client.query('BEGIN');
     
-    // Hash passwords
+    // Delete inventory logs first
+    await client.query('DELETE FROM inventory_logs');
+    console.log('Cleared inventory logs');
+    
+    // Delete color variants
+    await client.query('DELETE FROM color_variants');
+    console.log('Cleared color variants');
+    
+    // Delete material types
+    await client.query('DELETE FROM material_types');
+    console.log('Cleared material types');
+    
+    // Delete users
+    await client.query('DELETE FROM users');
+    console.log('Cleared users');
+    
+    // Reset sequences
+    await client.query('ALTER SEQUENCE users_id_seq RESTART WITH 1');
+    await client.query('ALTER SEQUENCE material_types_id_seq RESTART WITH 1');
+    await client.query('ALTER SEQUENCE color_variants_id_seq RESTART WITH 1');
+    console.log('Reset sequences');
+    
+    // Create users
     const adminPass = await bcrypt.hash('admin123', 10);
     const supervisorPass = await bcrypt.hash('super123', 10);
     const purchaserPass = await bcrypt.hash('purchase123', 10);
 
-    // Insert users
-    await pool.query(
+    await client.query(
       `INSERT INTO users (username, password_hash, role) VALUES 
         ('admin', $1, 'Admin'),
         ('supervisor', $2, 'Supervisor'),
         ('purchaser', $3, 'Purchaser')`,
       [adminPass, supervisorPass, purchaserPass]
     );
-
-    console.log('Adding materials...');
+    console.log('Created users');
     
-    // Insert materials
-    await pool.query(`
+    // Create materials
+    await client.query(`
       INSERT INTO material_types (name, unit, reorder_level) VALUES 
         ('Viscose Thread', 'cones', 20),
         ('Polyester Thread', 'cones', 20),
         ('Cotton Backing', 'yards', 50)
     `);
-
-    // Insert colors
-    await pool.query(`
+    console.log('Created material types');
+    
+    // Create colors
+    await client.query(`
       INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by) VALUES 
         (1, 'Red', 50, 'cones', 20, 1),
         (1, 'Blue', 75, 'cones', 20, 1),
@@ -393,8 +412,11 @@ app.get('/api/setup/create-users', async (req, res) => {
         (3, 'White', 350, 'yards', 50, 1),
         (3, 'Black', 200, 'yards', 50, 1)
     `);
-
-    console.log('✅ Setup completed!');
+    console.log('Created color variants');
+    
+    // Commit transaction
+    await client.query('COMMIT');
+    console.log('✅ Setup completed successfully!');
 
     res.json({ 
       success: true,
@@ -406,8 +428,11 @@ app.get('/api/setup/create-users', async (req, res) => {
       ]
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Setup error:', error);
     res.status(500).json({ error: 'Setup failed', details: error.message });
+  } finally {
+    client.release();
   }
 });
 
