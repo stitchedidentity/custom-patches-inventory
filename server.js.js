@@ -299,6 +299,50 @@ app.post('/api/color-variants/:id/deduct', authenticateToken, async (req, res) =
   }
 });
 
+// ============================================
+// ADD STOCK
+// ============================================
+
+app.post('/api/color-variants/:id/add-stock', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role === 'Purchaser') {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const { id } = req.params;
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Valid amount required' });
+    }
+
+    const current = await pool.query('SELECT quantity FROM color_variants WHERE id = $1', [id]);
+    
+    if (current.rows.length === 0) {
+      return res.status(404).json({ error: 'Color variant not found' });
+    }
+
+    // Handle null quantity - default to 0
+    const currentQty = current.rows[0].quantity || 0;
+    const newQuantity = currentQty + parseInt(amount);
+
+    const result = await pool.query(
+      `UPDATE color_variants SET quantity = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [newQuantity, id]
+    );
+
+    await pool.query(
+      `INSERT INTO inventory_logs (color_variant_id, action, amount, user_id) VALUES ($1, $2, $3, $4)`,
+      [id, 'ADD', parseInt(amount), req.user.userId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Add stock error:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
+  }
+});
+
 app.delete('/api/color-variants/:id', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'Admin') {
