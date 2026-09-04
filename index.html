@@ -692,6 +692,35 @@
   </div>
 </div>
 
+<!-- EDIT COLOR MODAL -->
+<div id="editColorModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">✏️ Edit Color Variant</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Color Name</label>
+        <input type="text" id="editColorName" placeholder="Color name">
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="editColorQty" placeholder="Quantity" min="0">
+      </div>
+      <div class="form-group">
+        <label>Unit</label>
+        <input type="text" id="editColorUnit" placeholder="e.g., cones, yards">
+      </div>
+      <div class="form-group">
+        <label>Reorder Level</label>
+        <input type="number" id="editColorReorder" placeholder="Reorder level" min="1">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeEditColorModal()">Cancel</button>
+      <button class="modal-btn modal-btn-save" onclick="saveEditColor()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- DASHBOARD -->
 <div id="dashboard" class="dashboard">
   <div class="container">
@@ -960,8 +989,8 @@ function renderInventory(materials) {
 
         if (currentUser.role === 'Admin') {
           html += `
-            <button class="edit-btn" onclick="">Edit</button>
-            <button class="delete-btn" onclick="">Delete</button>
+            <button class="edit-btn" onclick="openEditColorModal(${color.id}, '${color.name}', ${color.quantity}, '${color.unit}', ${color.reorderLevel})">Edit</button>
+            <button class="delete-btn" onclick="deleteColorVariant(${color.id})">Delete</button>
           `;
         }
 
@@ -977,10 +1006,10 @@ function renderInventory(materials) {
       html += `
         <div style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 15px;">
           <div style="font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px;">➕ Add Color Variant</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;">
-            <input type="text" id="colorName-${material.id}" placeholder="Color name (e.g., Red)" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px;">
-            <input type="number" id="colorQty-${material.id}" placeholder="Quantity" value="0" min="0" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px;">
-            <button onclick="addColorVariant(${material.id})" style="background: #48bb78; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">Add</button>
+          <div style="display: grid; grid-template-columns: 1fr 80px 60px; gap: 8px; align-items: flex-end;">
+            <input type="text" id="colorName-${material.id}" placeholder="Color name (e.g., Red)" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px; width: 100%;">
+            <input type="number" id="colorQty-${material.id}" placeholder="Qty" value="0" min="0" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px; width: 100%;">
+            <button onclick="addColorVariant(${material.id})" style="background: #48bb78; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; width: 100%;">Add</button>
           </div>
         </div>
       `;
@@ -1262,6 +1291,96 @@ async function addColorVariant(materialId) {
       loadInventory();
     } else {
       alert('❌ ' + (data.error || 'Failed to add color'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
+}
+
+// ============================================
+// EDIT COLOR VARIANT
+// ============================================
+
+let editingColorId = null;
+
+function openEditColorModal(colorId, name, quantity, unit, reorderLevel) {
+  editingColorId = colorId;
+  document.getElementById('editColorName').value = name;
+  document.getElementById('editColorQty').value = quantity;
+  document.getElementById('editColorUnit').value = unit;
+  document.getElementById('editColorReorder').value = reorderLevel;
+  document.getElementById('editColorModal').classList.add('active');
+}
+
+function closeEditColorModal() {
+  document.getElementById('editColorModal').classList.remove('active');
+  editingColorId = null;
+}
+
+async function saveEditColor() {
+  const name = document.getElementById('editColorName').value;
+  const quantity = document.getElementById('editColorQty').value;
+  const unit = document.getElementById('editColorUnit').value;
+  const reorderLevel = document.getElementById('editColorReorder').value;
+
+  if (!name || !unit) {
+    alert('❌ Please fill all fields');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/color-variants/${editingColorId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({ 
+        name, 
+        quantity: parseInt(quantity), 
+        unit, 
+        reorderLevel: parseInt(reorderLevel) 
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ Color updated successfully');
+      closeEditColorModal();
+      loadInventory();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to update color'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
+}
+
+// ============================================
+// DELETE COLOR VARIANT
+// ============================================
+
+async function deleteColorVariant(colorId) {
+  if (!confirm('Are you sure? This action cannot be undone.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/color-variants/${colorId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ Color deleted successfully');
+      loadInventory();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to delete color'));
     }
   } catch (error) {
     alert('❌ Error: ' + error.message);
