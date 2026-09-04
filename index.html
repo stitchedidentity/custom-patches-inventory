@@ -934,42 +934,57 @@ function renderInventory(materials) {
         </div>
     `;
 
+    // Add color variants
     if (colors.length === 0) {
-      html += '<div style="color: #999; font-size: 13px;">No colors added</div>';
+      html += '<div style="color: #999; font-size: 13px; margin-bottom: 15px;">No colors added</div>';
+    } else {
+      colors.forEach(color => {
+        const isLow = color.quantity <= color.reorderLevel;
+        const badgeClass = isLow ? 'low' : '';
+
+        html += `
+          <div class="color-item">
+            <div class="color-left">
+              <div class="color-name">${color.name}</div>
+              <div class="quantity-badge ${badgeClass}">${color.quantity} ${color.unit}</div>
+            </div>
+            <div class="color-actions">
+        `;
+
+        if (currentUser.role !== 'Purchaser') {
+          html += `
+            <input type="number" class="deduct-input" id="deduct-${color.id}" value="1" min="1">
+            <button class="deduct-btn" onclick="deductStock(${color.id})">Deduct</button>
+          `;
+        }
+
+        if (currentUser.role === 'Admin') {
+          html += `
+            <button class="edit-btn" onclick="">Edit</button>
+            <button class="delete-btn" onclick="">Delete</button>
+          `;
+        }
+
+        html += `
+            </div>
+          </div>
+        `;
+      });
     }
 
-    colors.forEach(color => {
-      const isLow = color.quantity <= color.reorderLevel;
-      const badgeClass = isLow ? 'low' : '';
-
+    // Add color form (Admin & Supervisor only)
+    if (currentUser.role !== 'Purchaser') {
       html += `
-        <div class="color-item">
-          <div class="color-left">
-            <div class="color-name">${color.name}</div>
-            <div class="quantity-badge ${badgeClass}">${color.quantity} ${color.unit}</div>
-          </div>
-          <div class="color-actions">
-      `;
-
-      if (currentUser.role !== 'Purchaser') {
-        html += `
-          <input type="number" class="deduct-input" id="deduct-${color.id}" value="1" min="1">
-          <button class="deduct-btn" onclick="deductStock(${color.id})">Deduct</button>
-        `;
-      }
-
-      if (currentUser.role === 'Admin') {
-        html += `
-          <button class="edit-btn" onclick="">Edit</button>
-          <button class="delete-btn" onclick="">Delete</button>
-        `;
-      }
-
-      html += `
+        <div style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 15px;">
+          <div style="font-size: 12px; font-weight: 600; color: #333; margin-bottom: 10px;">➕ Add Color Variant</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px;">
+            <input type="text" id="colorName-${material.id}" placeholder="Color name (e.g., Red)" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px;">
+            <input type="number" id="colorQty-${material.id}" placeholder="Quantity" value="0" min="0" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px;">
+            <button onclick="addColorVariant(${material.id})" style="background: #48bb78; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">Add</button>
           </div>
         </div>
       `;
-    });
+    }
 
     html += '</div>';
   });
@@ -1210,6 +1225,46 @@ function switchTab(tab) {
 
   if (tab === 'admin') {
     loadUsers();
+  }
+}
+
+async function addColorVariant(materialId) {
+  const colorName = document.getElementById(`colorName-${materialId}`).value;
+  const colorQty = document.getElementById(`colorQty-${materialId}`).value;
+
+  if (!colorName) {
+    alert('❌ Please enter a color name');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/color-variants`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({
+        materialTypeId: materialId,
+        name: colorName,
+        quantity: parseInt(colorQty) || 0,
+        unit: 'units',
+        reorderLevel: 20
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ Color added successfully');
+      document.getElementById(`colorName-${materialId}`).value = '';
+      document.getElementById(`colorQty-${materialId}`).value = '0';
+      loadInventory();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to add color'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
   }
 }
 
