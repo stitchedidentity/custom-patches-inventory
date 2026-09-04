@@ -506,6 +506,21 @@
       background: #38a169;
     }
 
+    .add-btn {
+      background: #4299e1;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .add-btn:hover {
+      background: #3182ce;
+    }
+
     .edit-btn {
       background: #4299e1;
       color: white;
@@ -984,6 +999,7 @@ function renderInventory(materials) {
           html += `
             <input type="number" class="deduct-input" id="deduct-${color.id}" value="1" min="1">
             <button class="deduct-btn" onclick="deductStock(${color.id})">Deduct</button>
+            <button class="add-btn" onclick="addStock(${color.id})">Add Stock</button>
           `;
         }
 
@@ -1142,6 +1158,42 @@ async function deductStock(colorId) {
     alert('❌ Error: ' + error.message);
   }
 }
+
+// ============================================
+// ADD STOCK
+// ============================================
+
+async function addStock(colorId) {
+  const input = document.getElementById(`deduct-${colorId}`);
+  const amount = parseInt(input.value);
+
+  if (!amount || amount <= 0 || isNaN(amount)) {
+    alert('❌ Please enter a valid amount');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/color-variants/${colorId}/add-stock`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({ amount })
+    });
+
+    if (response.ok) {
+      input.value = '1';
+      loadInventory();
+    } else {
+      const data = await response.json();
+      alert('❌ ' + (data.error || 'Failed to add stock'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
+}
+
 
 // ============================================
 // ADMIN PANEL
