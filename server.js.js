@@ -94,12 +94,14 @@ const authenticateToken = (req, res, next) => {
 app.get('/api/material-types', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT mt.*, json_agg(json_build_object(
+      `SELECT mt.id, mt.name, mt.unit, mt.reorder_level, mt.created_at, mt.updated_at,
+              COALESCE(json_agg(json_build_object(
         'id', cv.id, 'name', cv.name, 'quantity', cv.quantity, 'unit', cv.unit, 'reorderLevel', cv.reorder_level
-      )) as colors
+      )) FILTER (WHERE cv.id IS NOT NULL), '[]'::json) as colors
       FROM material_types mt
       LEFT JOIN color_variants cv ON mt.id = cv.material_type_id
-      GROUP BY mt.id ORDER BY mt.id`
+      GROUP BY mt.id, mt.name, mt.unit, mt.reorder_level, mt.created_at, mt.updated_at
+      ORDER BY mt.id`
     );
     res.json(result.rows);
   } catch (error) {
@@ -120,15 +122,18 @@ app.post('/api/material-types', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Name and unit required' });
     }
 
+    // Convert reorderLevel to integer
+    const reorder = parseInt(reorderLevel) || 20;
+
     const result = await pool.query(
-      'INSERT INTO material_types (name, unit, reorder_level) VALUES ($1, $2, $3) RETURNING *',
-      [name, unit, reorderLevel || 20]
+      'INSERT INTO material_types (name, unit, reorder_level, created_at, updated_at) VALUES ($1, $2, $3, NOW(), NOW()) RETURNING *',
+      [name, unit, reorder]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error creating material type:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -141,9 +146,17 @@ app.put('/api/material-types/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { name, unit, reorderLevel } = req.body;
 
+    // Validate required fields
+    if (!name || !unit) {
+      return res.status(400).json({ error: 'Name and unit are required' });
+    }
+
+    // Convert reorderLevel to integer
+    const reorder = parseInt(reorderLevel) || 20;
+
     const result = await pool.query(
-      'UPDATE material_types SET name = $1, unit = $2, reorder_level = $3 WHERE id = $4 RETURNING *',
-      [name, unit, reorderLevel || 20, id]
+      'UPDATE material_types SET name = $1, unit = $2, reorder_level = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
+      [name, unit, reorder, id]
     );
 
     if (result.rows.length === 0) {
@@ -152,8 +165,8 @@ app.put('/api/material-types/:id', authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error updating material type:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -191,20 +204,24 @@ app.post('/api/color-variants', authenticateToken, async (req, res) => {
 
     const { materialTypeId, name, quantity, unit, reorderLevel } = req.body;
 
-    if (!materialTypeId || !name || quantity === undefined || !unit) {
-      return res.status(400).json({ error: 'All fields required' });
+    if (!materialTypeId || !name || !unit) {
+      return res.status(400).json({ error: 'Material ID, name, and unit required' });
     }
 
+    // Convert to proper types
+    const qty = parseInt(quantity) || 0;
+    const reorder = parseInt(reorderLevel) || 20;
+
     const result = await pool.query(
-      `INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [materialTypeId, name, quantity || 0, unit, reorderLevel || 20, req.user.userId]
+      `INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by, created_at, updated_at) 
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
+      [materialTypeId, name, qty, unit, reorder, req.user.userId]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error creating color variant:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -217,9 +234,18 @@ app.put('/api/color-variants/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { name, quantity, unit, reorderLevel } = req.body;
 
+    // Validate required fields
+    if (!name || !unit) {
+      return res.status(400).json({ error: 'Name and unit are required' });
+    }
+
+    // Convert to proper types
+    const qty = parseInt(quantity) || 0;
+    const reorder = parseInt(reorderLevel) || 20;
+
     const result = await pool.query(
       `UPDATE color_variants SET name = $1, quantity = $2, unit = $3, reorder_level = $4, updated_at = NOW() WHERE id = $5 RETURNING *`,
-      [name, quantity, unit, reorderLevel || 20, id]
+      [name, qty, unit, reorder, id]
     );
 
     if (result.rows.length === 0) {
@@ -228,8 +254,8 @@ app.put('/api/color-variants/:id', authenticateToken, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error updating color variant:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
