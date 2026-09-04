@@ -1116,7 +1116,7 @@ async function deductStock(colorId) {
   const input = document.getElementById(`deduct-${colorId}`);
   const amount = parseInt(input.value);
 
-  if (!amount || amount <= 0) {
+  if (!amount || amount <= 0 || isNaN(amount)) {
     alert('❌ Please enter a valid amount');
     return;
   }
@@ -1135,7 +1135,8 @@ async function deductStock(colorId) {
       input.value = '1';
       loadInventory();
     } else {
-      alert('❌ Failed to deduct stock');
+      const data = await response.json();
+      alert('❌ ' + (data.error || 'Failed to deduct stock'));
     }
   } catch (error) {
     alert('❌ Error: ' + error.message);
@@ -1306,10 +1307,10 @@ let editingColorId = null;
 
 function openEditColorModal(colorId, name, quantity, unit, reorderLevel) {
   editingColorId = colorId;
-  document.getElementById('editColorName').value = name;
-  document.getElementById('editColorQty').value = quantity;
-  document.getElementById('editColorUnit').value = unit;
-  document.getElementById('editColorReorder').value = reorderLevel;
+  document.getElementById('editColorName').value = name || '';
+  document.getElementById('editColorQty').value = quantity || '0';
+  document.getElementById('editColorUnit').value = unit || '';
+  document.getElementById('editColorReorder').value = reorderLevel || '20';
   document.getElementById('editColorModal').classList.add('active');
 }
 
@@ -1320,12 +1321,21 @@ function closeEditColorModal() {
 
 async function saveEditColor() {
   const name = document.getElementById('editColorName').value;
-  const quantity = parseInt(document.getElementById('editColorQty').value);
+  const quantityStr = document.getElementById('editColorQty').value;
   const unit = document.getElementById('editColorUnit').value;
-  const reorderLevel = parseInt(document.getElementById('editColorReorder').value);
+  const reorderStr = document.getElementById('editColorReorder').value;
 
-  if (!name || !unit || isNaN(quantity) || isNaN(reorderLevel)) {
-    alert('❌ Please fill all fields with valid values');
+  // Validate
+  if (!name || !unit) {
+    alert('❌ Please fill Color Name and Unit');
+    return;
+  }
+
+  const quantity = parseInt(quantityStr);
+  const reorderLevel = parseInt(reorderStr);
+
+  if (isNaN(quantity) || isNaN(reorderLevel)) {
+    alert('❌ Quantity and Reorder Level must be numbers');
     return;
   }
 
