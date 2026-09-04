@@ -340,7 +340,44 @@ app.post('/api/users', authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// SETUP ENDPOINT - FIXED
+// DELETE USER (NEW FEATURE)
+// ============================================
+
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+
+    // Don't allow deleting your own account
+    if (req.user.userId === parseInt(id)) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    // Delete user's inventory logs first
+    await pool.query('DELETE FROM inventory_logs WHERE user_id = $1', [id]);
+
+    // Delete user's color variants (set created_by to NULL)
+    await pool.query('UPDATE color_variants SET created_by = NULL WHERE created_by = $1', [id]);
+
+    // Delete user
+    const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully', user: result.rows[0] });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ============================================
+// SETUP ENDPOINT - FIXED WITH TRANSACTION
 // ============================================
 
 app.get('/api/setup/create-users', async (req, res) => {
@@ -385,6 +422,7 @@ app.get('/api/setup/create-users', async (req, res) => {
         ('purchaser', $3, 'Purchaser')`,
       [adminPass, supervisorPass, purchaserPass]
     );
+
     console.log('Created users');
     
     // Create materials
@@ -412,11 +450,10 @@ app.get('/api/setup/create-users', async (req, res) => {
         (3, 'White', 350, 'yards', 50, 1),
         (3, 'Black', 200, 'yards', 50, 1)
     `);
-    console.log('Created color variants');
-    
+
     // Commit transaction
     await client.query('COMMIT');
-    console.log('✅ Setup completed successfully!');
+    console.log('✅ Setup completed!');
 
     res.json({ 
       success: true,
