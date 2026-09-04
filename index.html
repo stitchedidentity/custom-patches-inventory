@@ -1320,12 +1320,12 @@ function closeEditColorModal() {
 
 async function saveEditColor() {
   const name = document.getElementById('editColorName').value;
-  const quantity = document.getElementById('editColorQty').value;
+  const quantity = parseInt(document.getElementById('editColorQty').value);
   const unit = document.getElementById('editColorUnit').value;
-  const reorderLevel = document.getElementById('editColorReorder').value;
+  const reorderLevel = parseInt(document.getElementById('editColorReorder').value);
 
-  if (!name || !unit) {
-    alert('❌ Please fill all fields');
+  if (!name || !unit || isNaN(quantity) || isNaN(reorderLevel)) {
+    alert('❌ Please fill all fields with valid values');
     return;
   }
 
@@ -1338,9 +1338,9 @@ async function saveEditColor() {
       },
       body: JSON.stringify({ 
         name, 
-        quantity: parseInt(quantity), 
+        quantity,
         unit, 
-        reorderLevel: parseInt(reorderLevel) 
+        reorderLevel
       })
     });
 
