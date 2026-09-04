@@ -237,6 +237,40 @@
       display: block;
     }
 
+    /* METRICS SECTION */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .metric-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: #999;
+      font-weight: 600;
+    }
+
     /* ADD MATERIAL SECTION */
     .add-material-section {
       background: white;
@@ -312,9 +346,10 @@
       color: #333;
     }
 
-    .material-unit {
+    .material-info {
       font-size: 12px;
       color: #999;
+      margin-top: 3px;
     }
 
     .material-actions {
@@ -524,6 +559,10 @@
       .login-box {
         padding: 30px 20px;
       }
+
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
   </style>
 </head>
@@ -582,6 +621,30 @@
     <!-- INVENTORY TAB -->
     <div id="inventoryTab" class="tab-content active">
       
+      <!-- METRICS SUMMARY -->
+      <div class="metrics-grid" id="metricsContainer">
+        <div class="metric-card">
+          <div class="metric-icon">📦</div>
+          <div class="metric-value" id="totalMaterials">0</div>
+          <div class="metric-label">Total Materials</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">🎨</div>
+          <div class="metric-value" id="totalColors">0</div>
+          <div class="metric-label">Total Colors</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">⚠️</div>
+          <div class="metric-value" id="lowStockCount">0</div>
+          <div class="metric-label">Low Stock Alerts</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon">📊</div>
+          <div class="metric-value" id="totalUnits">0</div>
+          <div class="metric-label">Total Units</div>
+        </div>
+      </div>
+
       <!-- ADD MATERIAL (ADMIN ONLY) -->
       <div id="addMaterialSection" class="add-material-section" style="display: none;">
         <h3>➕ Add New Material Type</h3>
@@ -722,11 +785,35 @@ async function loadInventory() {
     if (!response.ok) throw new Error('Failed to load inventory');
 
     const materials = await response.json();
+    updateMetrics(materials);
     renderInventory(materials);
 
   } catch (error) {
     document.getElementById('materialsContainer').innerHTML = `<div style="color: red;">❌ ${error.message}</div>`;
   }
+}
+
+function updateMetrics(materials) {
+  let totalColors = 0;
+  let lowStockCount = 0;
+  let totalUnits = 0;
+
+  materials.forEach(material => {
+    const colors = material.colors && material.colors.length > 0 ? material.colors : [];
+    totalColors += colors.length;
+
+    colors.forEach(color => {
+      totalUnits += color.quantity;
+      if (color.quantity <= color.reorderLevel) {
+        lowStockCount++;
+      }
+    });
+  });
+
+  document.getElementById('totalMaterials').textContent = materials.length;
+  document.getElementById('totalColors').textContent = totalColors;
+  document.getElementById('lowStockCount').textContent = lowStockCount;
+  document.getElementById('totalUnits').textContent = totalUnits;
 }
 
 function renderInventory(materials) {
@@ -735,12 +822,16 @@ function renderInventory(materials) {
   materials.forEach(material => {
     const colors = material.colors && material.colors.length > 0 ? material.colors : [];
     
+    // Calculate totals for this material
+    let materialTotal = 0;
+    colors.forEach(c => materialTotal += c.quantity);
+
     html += `
       <div class="material-card">
         <div class="material-header">
           <div>
             <div class="material-name">${material.name}</div>
-            <div class="material-unit">${material.unit} (Reorder: ${material.reorder_level})</div>
+            <div class="material-info">${colors.length} colors • ${materialTotal} total • Unit: ${material.unit} (Reorder: ${material.reorder_level})</div>
           </div>
           ${currentUser.role === 'Admin' ? `
             <div class="material-actions">
