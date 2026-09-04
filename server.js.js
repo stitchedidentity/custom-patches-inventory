@@ -143,7 +143,7 @@ app.put('/api/material-types/:id', authenticateToken, async (req, res) => {
 
     const result = await pool.query(
       'UPDATE material_types SET name = $1, unit = $2, reorder_level = $3 WHERE id = $4 RETURNING *',
-      [name, unit, reorderLevel, id]
+      [name, unit, reorderLevel || 20, id]
     );
 
     if (result.rows.length === 0) {
@@ -198,7 +198,7 @@ app.post('/api/color-variants', authenticateToken, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by) 
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [materialTypeId, name, quantity, unit, reorderLevel || 20, req.user.userId]
+      [materialTypeId, name, quantity || 0, unit, reorderLevel || 20, req.user.userId]
     );
 
     res.status(201).json(result.rows[0]);
@@ -219,7 +219,7 @@ app.put('/api/color-variants/:id', authenticateToken, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE color_variants SET name = $1, quantity = $2, unit = $3, reorder_level = $4, updated_at = NOW() WHERE id = $5 RETURNING *`,
-      [name, quantity, unit, reorderLevel, id]
+      [name, quantity, unit, reorderLevel || 20, id]
     );
 
     if (result.rows.length === 0) {
@@ -252,7 +252,7 @@ app.post('/api/color-variants/:id/deduct', authenticateToken, async (req, res) =
       return res.status(404).json({ error: 'Color variant not found' });
     }
 
-    const newQuantity = Math.max(0, current.rows[0].quantity - amount);
+    const newQuantity = Math.max(0, (current.rows[0].quantity || 0) - amount);
 
     const result = await pool.query(
       `UPDATE color_variants SET quantity = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
