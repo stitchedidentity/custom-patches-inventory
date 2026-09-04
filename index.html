@@ -23,10 +23,7 @@
       margin: 0 auto;
     }
 
-    /* ============================================
-       LOGIN PAGE
-       ============================================ */
-
+    /* LOGIN PAGE */
     .login-container {
       display: flex;
       align-items: center;
@@ -129,10 +126,78 @@
       display: none;
     }
 
-    /* ============================================
-       DASHBOARD
-       ============================================ */
+    /* MODAL */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
 
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .modal-body {
+      margin-bottom: 20px;
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .modal-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .modal-btn-save {
+      background: #48bb78;
+      color: white;
+    }
+
+    .modal-btn-save:hover {
+      background: #38a169;
+    }
+
+    .modal-btn-cancel {
+      background: #e0e0e0;
+      color: #333;
+    }
+
+    .modal-btn-cancel:hover {
+      background: #ccc;
+    }
+
+    /* DASHBOARD */
     .dashboard {
       display: none;
     }
@@ -563,6 +628,10 @@
       .metrics-grid {
         grid-template-columns: repeat(2, 1fr);
       }
+
+      .modal-content {
+        width: 95%;
+      }
     }
   </style>
 </head>
@@ -590,6 +659,31 @@
     <button class="login-btn" onclick="login()">🔐 Sign In</button>
     
     <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- EDIT MATERIAL MODAL -->
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">✏️ Edit Material Type</div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Material Name</label>
+        <input type="text" id="editMatName" placeholder="Material name">
+      </div>
+      <div class="form-group">
+        <label>Unit</label>
+        <input type="text" id="editMatUnit" placeholder="e.g., cones, yards">
+      </div>
+      <div class="form-group">
+        <label>Reorder Level</label>
+        <input type="number" id="editMatReorder" placeholder="Reorder level" min="1">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-btn-cancel" onclick="closeEditModal()">Cancel</button>
+      <button class="modal-btn modal-btn-save" onclick="saveEditMaterial()">Save Changes</button>
+    </div>
   </div>
 </div>
 
@@ -711,6 +805,7 @@
 const API_URL = '/api';
 let currentUser = null;
 let currentToken = null;
+let editingMaterialId = null;
 
 // ============================================
 // LOGIN
@@ -835,7 +930,7 @@ function renderInventory(materials) {
           </div>
           ${currentUser.role === 'Admin' ? `
             <div class="material-actions">
-              <button class="action-btn" title="Edit">✏️</button>
+              <button class="action-btn" title="Edit" onclick="openEditModal(${material.id}, '${material.name}', '${material.unit}', ${material.reorder_level})">✏️</button>
               <button class="action-btn" title="Delete">🗑️</button>
             </div>
           ` : ''}
@@ -868,8 +963,8 @@ function renderInventory(materials) {
 
       if (currentUser.role === 'Admin') {
         html += `
-          <button class="edit-btn" onclick="editColor(${color.id})">Edit</button>
-          <button class="delete-btn" onclick="deleteColor(${color.id})">Delete</button>
+          <button class="edit-btn" onclick="">Edit</button>
+          <button class="delete-btn" onclick="">Delete</button>
         `;
       }
 
@@ -883,6 +978,57 @@ function renderInventory(materials) {
   });
 
   document.getElementById('materialsContainer').innerHTML = html || '<div style="color: #999;">No materials found</div>';
+}
+
+// ============================================
+// EDIT MATERIAL TYPE
+// ============================================
+
+function openEditModal(materialId, name, unit, reorderLevel) {
+  editingMaterialId = materialId;
+  document.getElementById('editMatName').value = name;
+  document.getElementById('editMatUnit').value = unit;
+  document.getElementById('editMatReorder').value = reorderLevel;
+  document.getElementById('editModal').classList.add('active');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('active');
+  editingMaterialId = null;
+}
+
+async function saveEditMaterial() {
+  const name = document.getElementById('editMatName').value;
+  const unit = document.getElementById('editMatUnit').value;
+  const reorderLevel = document.getElementById('editMatReorder').value;
+
+  if (!name || !unit) {
+    alert('❌ Please fill all fields');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/material-types/${editingMaterialId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${currentToken}`
+      },
+      body: JSON.stringify({ name, unit, reorderLevel: parseInt(reorderLevel) })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ Material updated successfully');
+      closeEditModal();
+      loadInventory();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to update material'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
+  }
 }
 
 async function addMaterial() {
@@ -951,16 +1097,6 @@ async function deductStock(colorId) {
     }
   } catch (error) {
     alert('❌ Error: ' + error.message);
-  }
-}
-
-function editColor(colorId) {
-  alert('Edit feature coming soon');
-}
-
-function deleteColor(colorId) {
-  if (confirm('Are you sure?')) {
-    alert('Delete feature coming soon');
   }
 }
 
