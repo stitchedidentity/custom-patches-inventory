@@ -278,7 +278,9 @@ app.post('/api/color-variants/:id/deduct', authenticateToken, async (req, res) =
       return res.status(404).json({ error: 'Color variant not found' });
     }
 
-    const newQuantity = Math.max(0, (current.rows[0].quantity || 0) - amount);
+    // Handle null quantity - default to 0
+    const currentQty = current.rows[0].quantity || 0;
+    const newQuantity = Math.max(0, currentQty - parseInt(amount));
 
     const result = await pool.query(
       `UPDATE color_variants SET quantity = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
@@ -287,13 +289,13 @@ app.post('/api/color-variants/:id/deduct', authenticateToken, async (req, res) =
 
     await pool.query(
       `INSERT INTO inventory_logs (color_variant_id, action, amount, user_id) VALUES ($1, $2, $3, $4)`,
-      [id, 'DEDUCT', amount, req.user.userId]
+      [id, 'DEDUCT', parseInt(amount), req.user.userId]
     );
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Deduct error:', error);
+    res.status(500).json({ error: 'Server error: ' + error.message });
   }
 });
 
@@ -406,6 +408,131 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
 // SETUP ENDPOINT - FIXED WITH TRANSACTION
 // ============================================
 
+app.get('/api/setup/reset', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    console.log('Starting database reset...');
+    
+    // Use transaction
+    await client.query('BEGIN');
+    
+    // Drop all tables
+    await client.query('DROP TABLE IF EXISTS inventory_logs CASCADE');
+    await client.query('DROP TABLE IF EXISTS color_variants CASCADE');
+    await client.query('DROP TABLE IF EXISTS material_types CASCADE');
+    await client.query('DROP TABLE IF EXISTS users CASCADE');
+    
+    console.log('Dropped all tables');
+    
+    // Recreate tables
+    await client.query(`
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Supervisor', 'Purchaser')),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE material_types (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        unit VARCHAR(100) NOT NULL,
+        reorder_level INTEGER NOT NULL DEFAULT 20,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE color_variants (
+        id SERIAL PRIMARY KEY,
+        material_type_id INTEGER NOT NULL REFERENCES material_types(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 0,
+        unit VARCHAR(100) NOT NULL,
+        reorder_level INTEGER NOT NULL DEFAULT 20,
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE inventory_logs (
+        id SERIAL PRIMARY KEY,
+        color_variant_id INTEGER NOT NULL REFERENCES color_variants(id) ON DELETE CASCADE,
+        action VARCHAR(50) NOT NULL,
+        amount INTEGER NOT NULL,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_color_variants_material_type ON color_variants(material_type_id);
+      CREATE INDEX IF NOT EXISTS idx_inventory_logs_color_variant ON inventory_logs(color_variant_id);
+    `);
+
+    console.log('Recreated all tables');
+    
+    // Create users
+    const adminPass = await bcrypt.hash('admin123', 10);
+    const supervisorPass = await bcrypt.hash('super123', 10);
+    const purchaserPass = await bcrypt.hash('purchase123', 10);
+
+    await client.query(
+      `INSERT INTO users (username, password_hash, role) VALUES 
+        ('admin', $1, 'Admin'),
+        ('supervisor', $2, 'Supervisor'),
+        ('purchaser', $3, 'Purchaser')`,
+      [adminPass, supervisorPass, purchaserPass]
+    );
+
+    console.log('Created users');
+    
+    // Create materials
+    await client.query(`
+      INSERT INTO material_types (name, unit, reorder_level, created_at, updated_at) VALUES 
+        ('Viscose Thread', 'cones', 20, NOW(), NOW()),
+        ('Polyester Thread', 'cones', 20, NOW(), NOW()),
+        ('Cotton Backing', 'yards', 50, NOW(), NOW())
+    `);
+    console.log('Created material types');
+    
+    // Create colors
+    await client.query(`
+      INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by, created_at, updated_at) VALUES 
+        (1, 'Red', 50, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'Blue', 75, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'Green', 30, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'White', 100, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'Black', 120, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'Red', 80, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'Blue', 95, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'Navy', 15, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'White', 150, 'cones', 20, 1, NOW(), NOW()),
+        (3, 'Natural', 500, 'yards', 50, 1, NOW(), NOW()),
+        (3, 'White', 350, 'yards', 50, 1, NOW(), NOW()),
+        (3, 'Black', 200, 'yards', 50, 1, NOW(), NOW())
+    `);
+
+    // Commit transaction
+    await client.query('COMMIT');
+    console.log('✅ Database reset completed!');
+
+    res.json({ 
+      success: true,
+      message: 'Database reset successfully!',
+      credentials: {
+        admin: { username: 'admin', password: 'admin123' },
+        supervisor: { username: 'supervisor', password: 'super123' },
+        purchaser: { username: 'purchaser', password: 'purchase123' }
+      }
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Reset error:', error);
+    res.status(500).json({ error: 'Reset failed', details: error.message });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/setup/create-users', async (req, res) => {
   const client = await pool.connect();
   try {
@@ -453,28 +580,28 @@ app.get('/api/setup/create-users', async (req, res) => {
     
     // Create materials
     await client.query(`
-      INSERT INTO material_types (name, unit, reorder_level) VALUES 
-        ('Viscose Thread', 'cones', 20),
-        ('Polyester Thread', 'cones', 20),
-        ('Cotton Backing', 'yards', 50)
+      INSERT INTO material_types (name, unit, reorder_level, created_at, updated_at) VALUES 
+        ('Viscose Thread', 'cones', 20, NOW(), NOW()),
+        ('Polyester Thread', 'cones', 20, NOW(), NOW()),
+        ('Cotton Backing', 'yards', 50, NOW(), NOW())
     `);
     console.log('Created material types');
     
     // Create colors
     await client.query(`
-      INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by) VALUES 
-        (1, 'Red', 50, 'cones', 20, 1),
-        (1, 'Blue', 75, 'cones', 20, 1),
-        (1, 'Green', 30, 'cones', 20, 1),
-        (1, 'White', 100, 'cones', 20, 1),
-        (1, 'Black', 120, 'cones', 20, 1),
-        (2, 'Red', 80, 'cones', 20, 1),
-        (2, 'Blue', 95, 'cones', 20, 1),
-        (2, 'Navy', 15, 'cones', 20, 1),
-        (2, 'White', 150, 'cones', 20, 1),
-        (3, 'Natural', 500, 'yards', 50, 1),
-        (3, 'White', 350, 'yards', 50, 1),
-        (3, 'Black', 200, 'yards', 50, 1)
+      INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by, created_at, updated_at) VALUES 
+        (1, 'Red', 50, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'Blue', 75, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'Green', 30, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'White', 100, 'cones', 20, 1, NOW(), NOW()),
+        (1, 'Black', 120, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'Red', 80, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'Blue', 95, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'Navy', 15, 'cones', 20, 1, NOW(), NOW()),
+        (2, 'White', 150, 'cones', 20, 1, NOW(), NOW()),
+        (3, 'Natural', 500, 'yards', 50, 1, NOW(), NOW()),
+        (3, 'White', 350, 'yards', 50, 1, NOW(), NOW()),
+        (3, 'Black', 200, 'yards', 50, 1, NOW(), NOW())
     `);
 
     // Commit transaction
