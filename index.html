@@ -1009,8 +1009,9 @@ function renderInventory(materials) {
           <div style="display: grid; grid-template-columns: 1fr 80px 60px; gap: 8px; align-items: flex-end;">
             <input type="text" id="colorName-${material.id}" placeholder="Color name (e.g., Red)" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px; width: 100%;">
             <input type="number" id="colorQty-${material.id}" placeholder="Qty" value="0" min="0" style="padding: 8px; border: 1px solid #e0e0e0; border-radius: 6px; font-size: 12px; width: 100%;">
-            <button onclick="addColorVariant(${material.id})" style="background: #48bb78; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; width: 100%;">Add</button>
+            <button onclick="addColorVariant(${material.id}, '${material.unit}', ${material.reorder_level})" style="background: #48bb78; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; width: 100%;">Add</button>
           </div>
+          <div style="font-size: 11px; color: #999; margin-top: 8px;">Uses unit: <strong>${material.unit}</strong> | Reorder: <strong>${material.reorder_level}</strong></div>
         </div>
       `;
     }
@@ -1257,7 +1258,7 @@ function switchTab(tab) {
   }
 }
 
-async function addColorVariant(materialId) {
+async function addColorVariant(materialId, unit, reorderLevel) {
   const colorName = document.getElementById(`colorName-${materialId}`).value;
   const colorQty = document.getElementById(`colorQty-${materialId}`).value;
 
@@ -1277,8 +1278,8 @@ async function addColorVariant(materialId) {
         materialTypeId: materialId,
         name: colorName,
         quantity: parseInt(colorQty) || 0,
-        unit: 'units',
-        reorderLevel: 20
+        unit: unit,
+        reorderLevel: reorderLevel
       })
     });
 
