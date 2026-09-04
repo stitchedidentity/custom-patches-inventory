@@ -1042,9 +1042,29 @@ async function createUser() {
   }
 }
 
-function deleteUser(userId) {
-  if (confirm('Delete this user?')) {
-    alert('Delete user feature coming soon');
+async function deleteUser(userId) {
+  if (!confirm('Are you sure? This action cannot be undone.')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${currentToken}`
+      }
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert('✅ User deleted successfully');
+      loadUsers();
+    } else {
+      alert('❌ ' + (data.error || 'Failed to delete user'));
+    }
+  } catch (error) {
+    alert('❌ Error: ' + error.message);
   }
 }
 
