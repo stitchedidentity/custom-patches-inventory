@@ -318,6 +318,11 @@
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
+    .metric-card.low-stock-material {
+      border-left: 4px solid #e53e3e;
+      background: #fffaf0;
+    }
+
     .metric-icon {
       font-size: 32px;
       margin-bottom: 10px;
@@ -715,28 +720,9 @@
     <!-- INVENTORY TAB -->
     <div id="inventoryTab" class="tab-content active">
       
-      <!-- METRICS SUMMARY -->
-      <div class="metrics-grid" id="metricsContainer">
-        <div class="metric-card">
-          <div class="metric-icon">📦</div>
-          <div class="metric-value" id="totalMaterials">0</div>
-          <div class="metric-label">Total Materials</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">🎨</div>
-          <div class="metric-value" id="totalColors">0</div>
-          <div class="metric-label">Total Colors</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">⚠️</div>
-          <div class="metric-value" id="lowStockCount">0</div>
-          <div class="metric-label">Low Stock Alerts</div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-icon">📊</div>
-          <div class="metric-value" id="totalUnits">0</div>
-          <div class="metric-label">Total Units</div>
-        </div>
+      <!-- MATERIALS SUMMARY -->
+      <div class="metrics-grid" id="materialsSummaryContainer">
+        <div class="loading">Loading summary...</div>
       </div>
 
       <!-- ADD MATERIAL (ADMIN ONLY) -->
@@ -889,26 +875,37 @@ async function loadInventory() {
 }
 
 function updateMetrics(materials) {
-  let totalColors = 0;
-  let lowStockCount = 0;
-  let totalUnits = 0;
+  let html = '';
 
   materials.forEach(material => {
     const colors = material.colors && material.colors.length > 0 ? material.colors : [];
-    totalColors += colors.length;
+    
+    let materialTotal = 0;
+    let lowStockItems = 0;
 
     colors.forEach(color => {
-      totalUnits += color.quantity;
+      materialTotal += color.quantity;
       if (color.quantity <= color.reorderLevel) {
-        lowStockCount++;
+        lowStockItems++;
       }
     });
+
+    const hasLowStock = lowStockItems > 0;
+
+    html += `
+      <div class="metric-card ${hasLowStock ? 'low-stock-material' : ''}">
+        <div class="metric-icon">📦</div>
+        <div class="metric-value">${material.name}</div>
+        <div class="metric-label">${colors.length} colors</div>
+        <div style="font-size: 12px; color: #667eea; margin-top: 8px; font-weight: 600;">
+          ${materialTotal} ${material.unit}
+          ${hasLowStock ? ` | ⚠️ ${lowStockItems} low` : ''}
+        </div>
+      </div>
+    `;
   });
 
-  document.getElementById('totalMaterials').textContent = materials.length;
-  document.getElementById('totalColors').textContent = totalColors;
-  document.getElementById('lowStockCount').textContent = lowStockCount;
-  document.getElementById('totalUnits').textContent = totalUnits;
+  document.getElementById('materialsSummaryContainer').innerHTML = html || '<div class="loading">No materials</div>';
 }
 
 function renderInventory(materials) {
