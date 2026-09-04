@@ -26,6 +26,49 @@ const pool = new pg.Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
+// Default permissions for each role
+const DEFAULT_PERMISSIONS = {
+  Admin: {
+    view_inventory: true,
+    add_material: true,
+    edit_material: true,
+    delete_material: true,
+    add_color: true,
+    edit_color: true,
+    delete_color: true,
+    deduct_stock: true,
+    add_stock: true,
+    manage_users: true,
+    view_logs: true
+  },
+  Supervisor: {
+    view_inventory: true,
+    add_material: false,
+    edit_material: false,
+    delete_material: false,
+    add_color: true,
+    edit_color: true,
+    delete_color: false,
+    deduct_stock: true,
+    add_stock: true,
+    manage_users: false,
+    view_logs: true
+  },
+  Purchaser: {
+    view_inventory: true,
+    add_material: false,
+    edit_material: false,
+    delete_material: false,
+    add_color: false,
+    edit_color: false,
+    delete_color: false,
+    deduct_stock: false,
+    add_stock: false,
+    manage_users: false,
+    view_logs: true
+  }
+};
+
 // ============================================
 // LOGIN
 // ============================================
@@ -51,8 +94,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Get permissions
+    const permissions = user.permissions || DEFAULT_PERMISSIONS[user.role] || {};
+
     const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
+      { userId: user.id, username: user.username, role: user.role, permissions },
       JWT_SECRET,
       { expiresIn: '30d' }
     );
@@ -62,7 +108,8 @@ app.post('/api/auth/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
-        role: user.role
+        role: user.role,
+        permissions
       }
     });
   } catch (error) {
@@ -87,11 +134,21 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Permission check helper
+const checkPermission = (permission) => {
+  return (req, res, next) => {
+    if (!req.user.permissions || !req.user.permissions[permission]) {
+      return res.status(403).json({ error: 'Permission denied' });
+    }
+    next();
+  };
+};
+
 // ============================================
 // MATERIAL TYPES
 // ============================================
 
-app.get('/api/material-types', authenticateToken, async (req, res) => {
+app.get('/api/material-types', authenticateToken, checkPermission('view_inventory'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT mt.id, mt.name, mt.unit, mt.reorder_level, mt.created_at, mt.updated_at,
@@ -110,19 +167,14 @@ app.get('/api/material-types', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/material-types', authenticateToken, async (req, res) => {
+app.post('/api/material-types', authenticateToken, checkPermission('add_material'), async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { name, unit, reorderLevel } = req.body;
 
     if (!name || !unit) {
       return res.status(400).json({ error: 'Name and unit required' });
     }
 
-    // Convert reorderLevel to integer
     const reorder = parseInt(reorderLevel) || 20;
 
     const result = await pool.query(
@@ -137,21 +189,15 @@ app.post('/api/material-types', authenticateToken, async (req, res) => {
   }
 });
 
-app.put('/api/material-types/:id', authenticateToken, async (req, res) => {
+app.put('/api/material-types/:id', authenticateToken, checkPermission('edit_material'), async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { id } = req.params;
     const { name, unit, reorderLevel } = req.body;
 
-    // Validate required fields
     if (!name || !unit) {
       return res.status(400).json({ error: 'Name and unit are required' });
     }
 
-    // Convert reorderLevel to integer
     const reorder = parseInt(reorderLevel) || 20;
 
     const result = await pool.query(
@@ -170,12 +216,8 @@ app.put('/api/material-types/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.delete('/api/material-types/:id', authenticateToken, async (req, res) => {
+app.delete('/api/material-types/:id', authenticateToken, checkPermission('delete_material'), async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { id } = req.params;
 
     await pool.query('DELETE FROM color_variants WHERE material_type_id = $1', [id]);
@@ -196,19 +238,14 @@ app.delete('/api/material-types/:id', authenticateToken, async (req, res) => {
 // COLOR VARIANTS
 // ============================================
 
-app.post('/api/color-variants', authenticateToken, async (req, res) => {
+app.post('/api/color-variants', authenticateToken, checkPermission('add_color'), async (req, res) => {
   try {
-    if (req.user.role === 'Purchaser') {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
     const { materialTypeId, name, quantity, unit, reorderLevel } = req.body;
 
     if (!materialTypeId || !name || !unit) {
       return res.status(400).json({ error: 'Material ID, name, and unit required' });
     }
 
-    // Convert to proper types
     const qty = parseInt(quantity) || 0;
     const reorder = parseInt(reorderLevel) || 20;
 
@@ -225,21 +262,15 @@ app.post('/api/color-variants', authenticateToken, async (req, res) => {
   }
 });
 
-app.put('/api/color-variants/:id', authenticateToken, async (req, res) => {
+app.put('/api/color-variants/:id', authenticateToken, checkPermission('edit_color'), async (req, res) => {
   try {
-    if (req.user.role === 'Purchaser') {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
     const { id } = req.params;
     const { name, quantity, unit, reorderLevel } = req.body;
 
-    // Validate required fields
     if (!name || !unit) {
       return res.status(400).json({ error: 'Name and unit are required' });
     }
 
-    // Convert to proper types
     const qty = parseInt(quantity) || 0;
     const reorder = parseInt(reorderLevel) || 20;
 
@@ -259,12 +290,8 @@ app.put('/api/color-variants/:id', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/color-variants/:id/deduct', authenticateToken, async (req, res) => {
+app.post('/api/color-variants/:id/deduct', authenticateToken, checkPermission('deduct_stock'), async (req, res) => {
   try {
-    if (req.user.role === 'Purchaser') {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
     const { id } = req.params;
     const { amount } = req.body;
 
@@ -278,7 +305,6 @@ app.post('/api/color-variants/:id/deduct', authenticateToken, async (req, res) =
       return res.status(404).json({ error: 'Color variant not found' });
     }
 
-    // Handle null quantity - default to 0
     const currentQty = current.rows[0].quantity || 0;
     const newQuantity = Math.max(0, currentQty - parseInt(amount));
 
@@ -299,16 +325,8 @@ app.post('/api/color-variants/:id/deduct', authenticateToken, async (req, res) =
   }
 });
 
-// ============================================
-// ADD STOCK
-// ============================================
-
-app.post('/api/color-variants/:id/add-stock', authenticateToken, async (req, res) => {
+app.post('/api/color-variants/:id/add-stock', authenticateToken, checkPermission('add_stock'), async (req, res) => {
   try {
-    if (req.user.role === 'Purchaser') {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-
     const { id } = req.params;
     const { amount } = req.body;
 
@@ -322,7 +340,6 @@ app.post('/api/color-variants/:id/add-stock', authenticateToken, async (req, res
       return res.status(404).json({ error: 'Color variant not found' });
     }
 
-    // Handle null quantity - default to 0
     const currentQty = current.rows[0].quantity || 0;
     const newQuantity = currentQty + parseInt(amount);
 
@@ -343,12 +360,8 @@ app.post('/api/color-variants/:id/add-stock', authenticateToken, async (req, res
   }
 });
 
-app.delete('/api/color-variants/:id', authenticateToken, async (req, res) => {
+app.delete('/api/color-variants/:id', authenticateToken, checkPermission('delete_color'), async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { id } = req.params;
 
     const result = await pool.query('DELETE FROM color_variants WHERE id = $1 RETURNING *', [id]);
@@ -368,13 +381,9 @@ app.delete('/api/color-variants/:id', authenticateToken, async (req, res) => {
 // USERS
 // ============================================
 
-app.get('/api/users', authenticateToken, async (req, res) => {
+app.get('/api/users', authenticateToken, checkPermission('manage_users'), async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    const result = await pool.query('SELECT id, username, role, created_at FROM users ORDER BY id');
+    const result = await pool.query('SELECT id, username, role, permissions, created_at FROM users ORDER BY id');
     res.json(result.rows);
   } catch (error) {
     console.error(error);
@@ -382,12 +391,8 @@ app.get('/api/users', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/users', authenticateToken, async (req, res) => {
+app.post('/api/users', authenticateToken, checkPermission('manage_users'), async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { username, password, role } = req.body;
 
     if (!username || !password || !role) {
@@ -395,10 +400,11 @@ app.post('/api/users', authenticateToken, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const permissions = DEFAULT_PERMISSIONS[role] || {};
 
     const result = await pool.query(
-      'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role',
-      [username, hashedPassword, role]
+      'INSERT INTO users (username, password_hash, role, permissions) VALUES ($1, $2, $3, $4) RETURNING id, username, role, permissions',
+      [username, hashedPassword, role, JSON.stringify(permissions)]
     );
 
     res.status(201).json(result.rows[0]);
@@ -411,30 +417,16 @@ app.post('/api/users', authenticateToken, async (req, res) => {
   }
 });
 
-// ============================================
-// DELETE USER (NEW FEATURE)
-// ============================================
-
-app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+app.delete('/api/users/:id', authenticateToken, checkPermission('manage_users'), async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
     const { id } = req.params;
 
-    // Don't allow deleting your own account
     if (req.user.userId === parseInt(id)) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
 
-    // Delete user's inventory logs first
     await pool.query('DELETE FROM inventory_logs WHERE user_id = $1', [id]);
-
-    // Delete user's color variants (set created_by to NULL)
     await pool.query('UPDATE color_variants SET created_by = NULL WHERE created_by = $1', [id]);
-
-    // Delete user
     const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {
@@ -449,7 +441,36 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
 });
 
 // ============================================
-// SETUP ENDPOINT - FIXED WITH TRANSACTION
+// UPDATE USER PERMISSIONS
+// ============================================
+
+app.put('/api/users/:id/permissions', authenticateToken, checkPermission('manage_users'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { permissions } = req.body;
+
+    if (!permissions || typeof permissions !== 'object') {
+      return res.status(400).json({ error: 'Valid permissions object required' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET permissions = $1 WHERE id = $2 RETURNING id, username, role, permissions',
+      [JSON.stringify(permissions), id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ============================================
+// DATABASE RESET & SETUP
 // ============================================
 
 app.get('/api/setup/reset', async (req, res) => {
@@ -457,10 +478,8 @@ app.get('/api/setup/reset', async (req, res) => {
   try {
     console.log('Starting database reset...');
     
-    // Use transaction
     await client.query('BEGIN');
     
-    // Drop all tables
     await client.query('DROP TABLE IF EXISTS inventory_logs CASCADE');
     await client.query('DROP TABLE IF EXISTS color_variants CASCADE');
     await client.query('DROP TABLE IF EXISTS material_types CASCADE');
@@ -468,13 +487,13 @@ app.get('/api/setup/reset', async (req, res) => {
     
     console.log('Dropped all tables');
     
-    // Recreate tables
     await client.query(`
       CREATE TABLE users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Supervisor', 'Purchaser')),
+        permissions JSONB,
         created_at TIMESTAMP DEFAULT NOW()
       );
 
@@ -514,22 +533,27 @@ app.get('/api/setup/reset', async (req, res) => {
 
     console.log('Recreated all tables');
     
-    // Create users
     const adminPass = await bcrypt.hash('admin123', 10);
     const supervisorPass = await bcrypt.hash('super123', 10);
     const purchaserPass = await bcrypt.hash('purchase123', 10);
 
     await client.query(
-      `INSERT INTO users (username, password_hash, role) VALUES 
-        ('admin', $1, 'Admin'),
-        ('supervisor', $2, 'Supervisor'),
-        ('purchaser', $3, 'Purchaser')`,
-      [adminPass, supervisorPass, purchaserPass]
+      `INSERT INTO users (username, password_hash, role, permissions) VALUES 
+        ('admin', $1, 'Admin', $4),
+        ('supervisor', $2, 'Supervisor', $5),
+        ('purchaser', $3, 'Purchaser', $6)`,
+      [
+        adminPass,
+        supervisorPass,
+        purchaserPass,
+        JSON.stringify(DEFAULT_PERMISSIONS.Admin),
+        JSON.stringify(DEFAULT_PERMISSIONS.Supervisor),
+        JSON.stringify(DEFAULT_PERMISSIONS.Purchaser)
+      ]
     );
 
     console.log('Created users');
     
-    // Create materials
     await client.query(`
       INSERT INTO material_types (name, unit, reorder_level, created_at, updated_at) VALUES 
         ('Viscose Thread', 'cones', 20, NOW(), NOW()),
@@ -538,7 +562,6 @@ app.get('/api/setup/reset', async (req, res) => {
     `);
     console.log('Created material types');
     
-    // Create colors
     await client.query(`
       INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by, created_at, updated_at) VALUES 
         (1, 'Red', 50, 'cones', 20, 1, NOW(), NOW()),
@@ -555,7 +578,6 @@ app.get('/api/setup/reset', async (req, res) => {
         (3, 'Black', 200, 'yards', 50, 1, NOW(), NOW())
     `);
 
-    // Commit transaction
     await client.query('COMMIT');
     console.log('✅ Database reset completed!');
 
@@ -572,99 +594,6 @@ app.get('/api/setup/reset', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('Reset error:', error);
     res.status(500).json({ error: 'Reset failed', details: error.message });
-  } finally {
-    client.release();
-  }
-});
-
-app.get('/api/setup/create-users', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    console.log('Starting setup...');
-    
-    // Use transaction
-    await client.query('BEGIN');
-    
-    // Delete inventory logs first
-    await client.query('DELETE FROM inventory_logs');
-    console.log('Cleared inventory logs');
-    
-    // Delete color variants
-    await client.query('DELETE FROM color_variants');
-    console.log('Cleared color variants');
-    
-    // Delete material types
-    await client.query('DELETE FROM material_types');
-    console.log('Cleared material types');
-    
-    // Delete users
-    await client.query('DELETE FROM users');
-    console.log('Cleared users');
-    
-    // Reset sequences
-    await client.query('ALTER SEQUENCE users_id_seq RESTART WITH 1');
-    await client.query('ALTER SEQUENCE material_types_id_seq RESTART WITH 1');
-    await client.query('ALTER SEQUENCE color_variants_id_seq RESTART WITH 1');
-    console.log('Reset sequences');
-    
-    // Create users
-    const adminPass = await bcrypt.hash('admin123', 10);
-    const supervisorPass = await bcrypt.hash('super123', 10);
-    const purchaserPass = await bcrypt.hash('purchase123', 10);
-
-    await client.query(
-      `INSERT INTO users (username, password_hash, role) VALUES 
-        ('admin', $1, 'Admin'),
-        ('supervisor', $2, 'Supervisor'),
-        ('purchaser', $3, 'Purchaser')`,
-      [adminPass, supervisorPass, purchaserPass]
-    );
-
-    console.log('Created users');
-    
-    // Create materials
-    await client.query(`
-      INSERT INTO material_types (name, unit, reorder_level, created_at, updated_at) VALUES 
-        ('Viscose Thread', 'cones', 20, NOW(), NOW()),
-        ('Polyester Thread', 'cones', 20, NOW(), NOW()),
-        ('Cotton Backing', 'yards', 50, NOW(), NOW())
-    `);
-    console.log('Created material types');
-    
-    // Create colors
-    await client.query(`
-      INSERT INTO color_variants (material_type_id, name, quantity, unit, reorder_level, created_by, created_at, updated_at) VALUES 
-        (1, 'Red', 50, 'cones', 20, 1, NOW(), NOW()),
-        (1, 'Blue', 75, 'cones', 20, 1, NOW(), NOW()),
-        (1, 'Green', 30, 'cones', 20, 1, NOW(), NOW()),
-        (1, 'White', 100, 'cones', 20, 1, NOW(), NOW()),
-        (1, 'Black', 120, 'cones', 20, 1, NOW(), NOW()),
-        (2, 'Red', 80, 'cones', 20, 1, NOW(), NOW()),
-        (2, 'Blue', 95, 'cones', 20, 1, NOW(), NOW()),
-        (2, 'Navy', 15, 'cones', 20, 1, NOW(), NOW()),
-        (2, 'White', 150, 'cones', 20, 1, NOW(), NOW()),
-        (3, 'Natural', 500, 'yards', 50, 1, NOW(), NOW()),
-        (3, 'White', 350, 'yards', 50, 1, NOW(), NOW()),
-        (3, 'Black', 200, 'yards', 50, 1, NOW(), NOW())
-    `);
-
-    // Commit transaction
-    await client.query('COMMIT');
-    console.log('✅ Setup completed!');
-
-    res.json({ 
-      success: true,
-      message: 'Setup completed successfully!',
-      users: [
-        { username: 'admin', password: 'admin123', role: 'Admin' },
-        { username: 'supervisor', password: 'super123', role: 'Supervisor' },
-        { username: 'purchaser', password: 'purchase123', role: 'Purchaser' }
-      ]
-    });
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Setup error:', error);
-    res.status(500).json({ error: 'Setup failed', details: error.message });
   } finally {
     client.release();
   }
@@ -692,6 +621,7 @@ async function initializeDatabase() {
         username VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Supervisor', 'Purchaser')),
+        permissions JSONB,
         created_at TIMESTAMP DEFAULT NOW()
       );
 
